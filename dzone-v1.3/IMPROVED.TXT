@@ -1,0 +1,80 @@
+This file lists MOST of the things added to D-Zone after the initial release.
+It is written for those that have played an earlier version of D-Zone and
+are interested in the new features.
+
+Dec 92, D-Zone 1.0 released (with bugs)
+
+   Bug fixes: Team score has no maximum limit anymore.
+              Statistics board in teams mode all working properly.
+              CLOSE RANGE firing at another tank now effective on slow
+              computers.
+   Amount of fire left for weapons shown in shop devided by 10 instead of 100.
+   Maximum number of rounds raised from 99 to 120.
+   Item prices go up with the player's rankings instead of with the score.
+
+D-Zone 1.01 released
+
+   Items removed from game:
+     FUSION HEALER, ELECTRON / LIGHTNING BOLT, TRACER, SELF DESTRUCT.
+   Items added to game:
+     AUTO HEALER, SPARK FIENDS, FAST RECHARGE, LARGER DEATH.
+   New robot: R5 Destroyer, uses heavier armour.
+   Each item reviewed.. Most items behave differently now, eg weapons
+     do different amounts of damage, all prices changed, ROTRA II
+     has better armour, many little things I can't remember..
+   Statistics board may be requested by pressing 's'.
+   More than one game can be saved at once (input filename).
+   Unregistered copies may quit randomly.
+   In shop, tank owned and weapon fire number shown in red.
+   Tanks most/least hit shown in proper colour.
+   Number of rounds can be altered using +/-/PgUp/PgDn keys.
+   Robots do not use HEALER repeatedly.
+   Missiles may appear in tank colour - SETUP option.
+   DZONE.DOC re-written.
+
+Feb 93, D-Zone v1.1 released
+
+   Support for 800x600 and 1024x768 SuperVGA modes, chosen in SETUP.
+   A few weapons altered, or replaced by different weapons, eg TELEPORT FOE.
+   Missions added - read end of DZONE.DOC.
+   Coloured missiles supported properly.
+   Missiles pass through RED DOT as they should.
+
+Mar 93, D-Zone v1.2 released
+
+   New weapon: REAR CHAOS replaces TWIN SEEKERS
+   New item: TANK TURRET.
+   All robot tanks re-programmed, now have personal characteristics:
+     Prototypes (now very nervous) head for the tank with lowest score.
+     Aimers often sit still and use turrets on the nearest tank.
+     Seekers remain unchanged (head for nearest tank) and can't use turrets.
+     Hunters generally head for highest scoring tank and use turrets.
+     Destroyers destroy anything in range, and love using turrets.
+   The trigonometric functions in the programming had previously been rather
+     approximate to keep the game running fast. These approximations have
+     been removed, resulting in much better robot opponents.
+   Human tanks are temporarily replaced by a robot (chosen in SETUP) when
+     completely neglected for a round. The human can resume at any time.
+   Title page re-done.
+
+Aug 93, D-Zone v1.3 ready for registered users.
+
+   SHOW MISSIONS option from main menu replaces SAVE OPTIONS. Options are now
+     automatically saved as game starts. Missions added (from four to eight).
+   Bug fixed: SAVE GAME now stores the team score.
+   New item: DEFLECTOR replaces ECM HACKER
+   New weapons: SWIRL BLASTER and OCTO BREAKER.
+   New ray-traced background in shopping screen.
+   Bug fixes: DEATH TOUCH works properly. Robots which have taken over humans
+     do not remain as robots when the game has finished.
+
+Feb 94, Version 1.3a ready for registered users.
+
+   More setup options: Omit title page, alter tank colours, alter game speed.
+   A major freezing problem has been resolved, but only for the 640x480 mode.
+
+Jun 94
+   Version 1.3 released to public with resolved freezing problem.
+   Version 1.3b ready for registered users.
+
+

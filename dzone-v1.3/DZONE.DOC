@@ -1,0 +1,737 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                Destruction Zone
+
+                                  Version 1.3b
+
+
+
+
+                 Copyright (c) 1992, 1993, 1994 Julian Cochran
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                   CONTENTS:
+                             
+
+
+
+                     About the Game . . . . . . . . . . 2,3
+
+                     Keyboard
+
+                          Option Screen . . . . . . . . 3
+
+                          Shopping keys . . . . . . . . 4
+
+                          Controlling Tank  . . . . . . 4
+
+                          Changing Tank Controls  . . . 4
+
+                     Scoring System . . . . . . . . . . 5
+
+                     Information on items
+
+                           Tanks  . . . . . . . . . . . 6
+
+                           Weapons  . . . . . . . . . . 7..10
+
+                           Tools  . . . . . . . . . . . 10,11
+
+                     Robot tanks  . . . . . . . . . . . 11
+
+                     D-Zone Missions  . . . . . . . . . 12
+
+                     Registration . . . . . . . . . . . 12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                                                         page 2
+
+                               ABOUT THE GAME
+
+  Destruction Zone is a science fiction tank war game. It requires a  VGA  card
+
+and will run on any PC/AT machine. Although written for a 486, D-Zone  runs  at
+
+a similar speed on slower computers by lowering the detail of movement.
+
+
+
+                       DESTRUCTION ZONE - THE REAL GAME
+
+  Somewhere near the centre of our galaxy lies an enormous dark  station.  From
+
+time to time, a group of challengers travel out to the station to turn  on  the
+
+lights, transforming the 'Dark Zone' into the 'Destruction Zone'.
+
+  The station has three levels of different sizes. Each level is large in area,
+
+but the ceiling lies only a few metres above the floor. It is the battle field
+
+for the most famous war game in the galaxy.
+
+  A series of triangular tanks essentially made up of three huge cylinders, are
+
+teleported into the zone and hover in their positions, repelled from the  floor
+
+and ceiling by strong electric forces. The liquid fuel of each tank can be seen
+
+splashing around in the inside of each cylinder and by looking closely  inside,
+
+a few cables and tubes are also visible. Due to the radioactive fuels used each
+
+tank softly radiates a unique colour.
+
+   As the Destruction Zone becomes even brighter, the tanks start to move.  The
+
+first round has begun. The tank controllers switch between a range of  weapons,
+
+blasting their foes in all directions.
+
+   As time passes, the tanks glow dimmer, for they are all low on weapon  fuel.
+
+They wait in corners, absorbing the Zone light until they  glow  brighter,  and
+
+then they launch another attack.
+
+   When a tank has taken too much damage, it is teleported out of the Zone with
+
+the unharmed controller, so everyone lives  to  play  another  game.  From  all
+
+around the galaxy, the D-Zone enthusiasts are waiting for the next  score-board
+
+update.
+
+                                                                          page 3
+
+   Every three rounds, competitors are allowed to spend their hard-earned money
+
+in the Destruction Zone Shop, where advanced weaponry and special tools can  be
+
+purchased for a suitable price. Membership discounts are available.
+
+   Sometimes there are not enough willing to play the game which is  why  robot
+
+tanks are often required. The robots  all  have  different  personalities,  and
+
+combat standards, and some are even a challenge for highly ranked D-Zoners.
+
+
+
+
+
+
+
+
+   This game is a simulation of the game described above, with each tank  being
+
+represented by a three point vector image, and controlled using  a  combination
+
+of six different keys:  Forwards, backwards,  turn  left,  turn  right,  change
+
+weapon, and fire. The background is generated randomly at the beginning of each
+
+round and the Destruction Zone is viewed from above.
+
+   Most of the game is easy to work out without any instructions, so  the  rest
+
+of this manual only contains information about what each key does, the  scoring
+
+system, and a description of each shop item and robot tank.
+
+
+
+
+
+KEYS USED IN THE OPTION SCREEN:
+
+
+   CURSOR KEYS             Change hi-lighted box.
+   RETURN or SPACEBAR      Toggle information in box.
+
+   To select a human player, move the hi-light to player 1 box and press RETURN
+   until a cursor appears in the box. Now enter name and press RETURN once more.
+   The 'rounds' can also be changed quickly using the PgUp, PgDn, + and - keys.
+
+   It is important to know which box corresponds to which player:
+
+                  PLAYERS    x      PLAYER 1        PLAYER 4
+                  ROUNDS    xx      PLAYER 2        PLAYER 5
+                  HOSTILE MODE      PLAYER 3        PLAYER 6
+
+   Only the first three players can be controlled from the keyboard. The keys
+   for each player are shown below, but may be re-defined by running SETUP.EXE
+
+                                                                          page 4
+KEYS USED IN SHOPPING SCREEN:
+
+   CURSOR KEYS            Change hi-lighted box.
+   RETURN or SPACEBAR     Buy a weapon, end shopping, abort game, save  current
+                          game, or load a different game. For loading or saving
+                          if 'enter' is pressed twice without typing  the  file
+                          name, the file 'UNKNOWN' is used.
+   PAGE UP or HOME        View information on the current item. If  the  cursor
+                          does not move for a few seconds, the item information
+                          is requested automatically.
+
+
+CONTROLLING THE TANK (default keys)
+
+   PLYR 1   PLYR 2   PLYR 3        ACTION
+
+   UP         W        P           Move forward
+   DOWN       X        /           Move backwards
+   LEFT       A        L           Rotate towards the left
+   RIGHT      D        '           Rotate towards the right
+   PAGE UP    E        [           Change weapon
+   HOME       Q        O           Fire current weapon
+
+   END        Z        .           Rotate turret towards the left (if installed)
+   PAGE DOWN  C     R SHIFT        Rotate turret towards the right
+   CENTRE     S        ;           Centre (de-activate) the turret
+
+
+   If you want to end the round press ESC. This is used when  computer  players
+   become stuck after all human players are out. By pressing ESC, the remaining
+   players receive a predicted score and money bonus depending on the amount of
+   weapon energy and shield energy each tank  has.  Living  human  players  are
+   assumed to be destroyed when ESC is pressed, so they get no bonus. Only  use
+   this quitting option to quickly get to the shopping menu to save the game or
+   when the robots are taking too long to finish the round.
+
+
+   SETUP.EXE - CHANGING TANK CONTROLS:
+
+   You may find the default tank controls to be rather awkward, in  which  case
+   you should re-define them (for any of the players) using SETUP.
+
+   Do not be afraid to change the settings in SETUP, after all, hitting  RETURN
+   through any of the questions results in a return to the default settings.
+
+   Game options that can be changed in SETUP.EXE are:
+
+      1) Re-defining tank control keys.
+      2) Specifying which D-Zone to use - there are three sizes.
+      3) Choosing the kind of sound to be used.
+      4) Registering the game, to remove message at start.
+      5) Altering game speed.
+      6) Allowing game to double in speed when only robot tanks remain.
+      7) Choosing type of robot that can take over your controls.
+      8) Rotating tank colours from tank to tank.
+
+                                                                          page 5
+SCORING:
+
+   TANK POINTS - TEAMS MODE AND HOSTILE MODE
+
+      KILLING A TANK:   3 points
+      DAMAGING A TANK:  1 point for every unit of damage done
+                        (up to 40 points)
+
+      A tank takes 40 units of damage to be destroyed,  so  43  points  can  be
+      earned for a complete kill. Hitting a tank with good  armour  means  that
+      each hit does less damage, so each hit must also earn a lower  score. For
+      this reason it is best to pick on the tanks with poor  armour  first,  to
+      get the most out of your weapon energy.
+
+      In team mode, additional tank points are earned for firing at  the  enemy
+      jewel. This means that it is a good idea to fire at the jewel while it is
+      slowing down, after all the enemy tanks have been destroyed.
+
+
+   TEAM POINTS - TEAMS MODE ONLY
+
+      A team receives 1 point for every unit of  damage  done  to  the  enemy's
+      jewel - up to 50 points. A jewel continually receives  damage  after  all
+      members of the team are out. No team points are earned for destroying  or
+      damaging tanks, although tank points are still  obtained  this  way.  The
+      team leader is the player who has the highest tank score. Tank points are
+      lost for firing at members of the same team.
+
+
+   GETTING MONEY
+
+      Ten credits are received for every unit of damage done, either  to  tanks
+      or jewels, so a maximum of 400 credits can be  earned  for  destroying  a
+      tank and 500 credits for completely destroying a jewel.
+
+   THE STATISTICS BOARD
+
+      The statistics board is shown every 15 rounds, at the end of the game, or
+      when 's' is pressed from the score-board. The information is mostly  self
+      explanatory. The 'hit-fire ratio' represents the firing efficiency, hence
+      a low value is given to the players who use low-damage weapons  or  often
+      miss the target. The 'current weapon' shows a number  beside  the  weapon
+      name which is the amount of times that weapon can be fired before it runs
+      out. Note that you can still select the 'current weapon' after your  tank
+      has been destroyed in order to find out how many charges it has left.
+
+      The rest of the statistical information should not need explaining.
+
+                                                                          page 6
+
+
+INFORMATION ON ITEMS:
+
+   There are three different types of items: TANKS,  WEAPONS,  and  TOOLS.  The
+   prices move up and down with the player's ranking, in an attempt to keep the
+   game more even. All the prices given below assume that  the  buyer  has  the
+   average score of all the tanks.
+
+   Sometimes some of the special weapons do not seem to be worth the money, but
+   they were all put into the game for a reason - it may simply require  a  bit
+   of imagination to use some of them effectively. The descriptions  given  may
+   contain some useful ideas.
+
+
+
+   TANKS:
+
+      Each tank has four attributes: Speed (forwards and backwards), rotational
+      speed, armour and size. Upgrades for rotation, speed, and armour  can  be
+      bought for the same price as the tank. If you have  bought  upgrades  for
+      a tank and then buy a new tank, the upgrades are NOT  carried  across  to
+      the new tank. When buying a tank, consider its potential attributes (with
+      everything upgraded) aswell as the set attributes.
+
+
+      STANDARD TANK        This is the tank that all players begin with. It has
+                           a slow turning rate and is the largest tank of all.
+                           This tank is unlisted for wealthy players.
+
+                           The number in brackets is the value after an upgrade
+                           has been bought. SH-shield, ROT-rotation, SP-speed.
+                           SH 3(4)       ROT 4(6)       SP 2(3)     Price: 1000
+
+      ROTRA I              This 'Rotation Tank' was the first non-standard tank
+                           used for D-Zone combat. It has a much better rate of
+                           rotation and has improved armour.
+                           SH 4(6)       ROT 6(9)       SP 2(3)     Price: 1850
+
+      ROTRA II             The compact version of the ROTRA I was designed  for
+                           even better manoeuvrability.  This  tank is  a  good
+                           alternative to the larger tanks. It  has  very  poor
+                           armour and relies on a skillful controller  to dodge
+                           all the missiles.
+                           SH 2(3)       ROT 8(12)      SP 3(4)     Price: 2450
+
+      OPEC I               The expensive OPEC series were designed  for  faster
+                           velocity while maintaining good rotations speeds. It
+                           has fairly good armour, and very good attribues when
+                           fully upgraded.
+                           SH 4(6)       ROT 6(9)       SP 3(4)     Price: 3400
+
+      OPEC II              A high price is required for the OPEC II -  slightly
+                           smaller than the original OPEC, with  better  armour
+                           and a faster turning rate.
+                           SH 5(7)       ROT 7(10)      SP 3(4)     Price: 4750
+
+                                                                          page 7
+WEAPONS:
+
+      Each tank has seven weapon ports, used for different purposes,  and  each
+      weapon occupies a particular port. The first port is always used for  the
+      front fire weapons, the second port for Blasters, and so on.
+
+      When a new weapon is purchased, a '10' appears in the right of the window
+      This means that the weapon can be fired 10*10 times. The same weapon  can
+      be bought up to 9 times, giving a maximum of 900 fires.
+
+      Be careful when buying new weapons. New weapons replace any number of old
+      weapons of the same port without warning. Use the PAGE UP key before  you
+      buy any new weapon, or you may be replacing an even better weapon.
+
+
+  DESCRIPTIONS:
+
+
+  [Tank port used]
+
+      [Weapon Name]  [Damage/Energy]   [Description]
+          (abbrev)   [Price (assumes a middle ranked player)]
+
+
+   PORT 1  (Front Fire)
+
+
+      MISSILE        4/4   This is the weapon that all tanks start with. It  is
+         (MISIL)     2     sometimes bought as a low priced backup weapon, and
+                           its ability is often underestimated, considering the
+                           negligable price. [Unlisted for wealthy players].
+
+      DOUBLE MISSILE 6/4   Improve the power of the  standard  missile  without
+         (DOUBL)     100   using any more energy. The low price  makes  this  a
+                           good weapon for saving money.
+
+      TRIPLE MISSILE 9/5   The Triple Missile is the next step after the Double
+         (TRIPL)     600   Missile. Due to its slow speed and high damage, this
+                           weapon is best used for close range combat.
+
+      BEAM LASER     6/6   Like all the low priced weapons, it is a  good  idea
+         (LASER)     150   to get used to using the Beam  Laser.  Although  the
+                           expensive weapons may do more  damage,  you  are not
+                           necessarily making more  money  for  every  unit  of
+                           damage done -> Master the low priced weapons.
+
+      POWER LASER    12/6  Power Lasers fire two Beam Lasers while using up the
+         (POWER)     1650  energy of only one. It should be used for aiming  at
+                           a specific enemy rather than whomever is closest.
+
+      TRI-STRIKER    18/6  The Tri Striker is extremely efficient, but requires
+        (STRIK)      3350  great aiming skills when used in long range firing -
+                           the primary purpose for this weapon.
+
+                                                                          page 8
+
+   PORT 2  (Blasters)
+
+      BLASTER        90/23 The blasters use the 'double fire' system, where the
+         (BLAST)     650   first fire sends out the warhead and the second fire
+                           breaks the warhead up into a group of missiles.  The
+                           warheads break up automatically when they hit a wall
+                           or the tank. The best way to use blasters is to fire
+                           at the side of the tank rather. Even then, only half
+                           the maximum damage is done on average.
+
+      GUIDE BLASTER  90/28 A blaster with a guided warhead,  suitable  for  the
+         (G.BST)     1200  desperate situation when there's no time for careful
+                           aiming, or for those who are simply bad at aiming.
+
+      BLAST GUIDER   70/34 The opposite effect to the GUIDE BLASTER. The  BLAST
+         (B.GUI)     2500  GUIDER is a normal warhead that breaks into a  group
+                           of very effective guided missiles. In  open  spaces,
+                           maximum damage can easily be obtained, making this a
+                           a very good value for money weapon.
+
+      NUKE BLASTER  168/40 This is the big version of the standard Blaster.  It
+         (N.BST)     3400  only takes two or three, and sometimes only one good
+                           hit to completely destroy a fully shielded tank.
+                           Since the weapon is not fired many times, it ends up
+                           being very good value, but must be aimed  carefully.
+                           Also, aim at the side of the tank, not at the head.
+
+      SWIRL BLASTER  48/20 On second firing, the warhead will split into six
+         (S.BST)     3800  swirlers, each doing eight units of damage.
+
+   PORT 3  (Surprise Attack)
+
+      REAR DOUBLE    8/5   Two missiles are fired parallel out from the rear of
+         (REAR2)     130   the tank. The weapon makes a good  surprise  attack,
+                           and has a strangely low price considering the damage
+                           damage it does. Because of this, many like  to  fire
+                           ir from the front of the tank using a TURRET.
+
+      REAR GUIDED    8/5   The REAR GUIDED releases two  guided  missiles  from
+         (GREAR)     650   the rear, each doing four units of damage. Very good
+                           for attacking while being chased.
+
+      REAR CHAOS     14/5  Miniature guiders are released from the rear of  the
+         (CHAOS)     1000  tank to destroy pursuing enemies. The missiles  will
+                           die after a short period, so this weapon is only for
+                           short range attacks. It can be used in a variety  of
+                           interesting ways.
+
+      TELEPORT FOE   0/4   This forces the nearest tank to be teleported  to  a
+                     1600  random location. It is useful for escaping a closing
+                           tank, or for separating two tanks  in  close  combat
+                           which are wasting your 'potential points'.
+
+      REAR TRIPLE    15/6  The REAR TRIPLE is the improved version of the  REAR
+         (REAR3)     2200  DOUBLE, doing nearly twice the damage for a  similar
+                           use of energy. A good alternative to the TRI STRIKER
+                           when used on the front with a TURRET.
+
+                                                                          page 9
+   PORT 4  (Special Front Fire)
+
+      TRI BREAKER    21/12 A great starting weapon due to a  very  high  damage
+         (T.BRK)     250   per unit cost. On second firing the  missile  splits
+                           up into three, each able to do 7 units of damage. An
+                           effective way to use BREAKER weapons is  to  make  a
+                           direct hit, at which point the warhead breaks up.
+
+      GUIDED         6/6   This is the basic guided missile. It  only  requires
+         (GUIDE)     400   approximate aiming to hit the target. Since it has a
+                           poor damage/energy ratio, guided missiles  are  only
+                           valuable to the unskilled players.
+
+      QUINT BREAKER  30/12 These work the same way as the Tri Breakers,  except
+         (Q.BRK)     1350  releasing five missiles instead of three, each doing
+                           six units of damage - good value for money.
+
+      QUINT GUIDER   30/20 The Quint Guider is identical to the  Quint  Breaker
+         (Q.GUI)     2250  except that it produces guided missiles, and uses up
+                           more weapon power.
+
+      OCTO BREAKER   48/16 The OCTO BREAKER is the next level up from the QUINT
+         (O.BRK)     4000  BREAKER. It will only take two or three good hits to
+                           destroy any tank. Because of  the  high  price,  the
+                           players must be careful not to miss their target.
+
+      SPARK FIENDS   16/9  Although the damage does not seem as high  as  other
+         (SPARK)     5400  weapons, the fact that the SPARK FIENDS  never  miss
+                           their target makes this weapon one of the  best.  It
+                           has been put in the game, not for making money,  but
+                           for quickly killing off rivals before they can score
+                           any points.
+
+
+   PORT 5  (Aggressive Defence)
+
+      SWIRLER        8/3   A missile is released which swirls around the  tank.
+         (SWIRL)     225   Swirlers are usually fired in large numbers  to  get
+                           rid of touching or chasing tanks. The SWIRLER has  a
+                           particularly high damage/price ratio. A useful skill
+                           for destroying a single robot is to circle it  while
+                           firing many swirlers, especially with a fast tank.
+
+      ELECTRO BUDS   15/4  Three slow moving missiles are released, each with a
+         (ELECT)     800   guiding system. When fired in large numbers they can
+                           act as a 'deadly mist'.
+
+      NORMAL BOMB   100/25 The bombs are usually used against robot tanks since
+         (NBOMB)     500   they have poor skills for avoiding them. The idea is
+                           to have the tank move right over the bomb when it is
+                           detonated, where two  or  three  hits  will  usually
+                           kill. Sometimes they can be dropped in a place where
+                           the enemy is forced to move over.
+
+      DEATH BOMB    350/40 These bombs will usually destroy anything that moves
+         (DBOMB)     3250  them during detonation. "Pop". This is actually  the
+                           cheapest weapon available by the time all its damage
+                           has been done (near-maximum damage can be obtained).
+
+                                                                         page 10
+   PORT 6  (Special Defence)
+
+      DEATH TOUCH    15/7  The tank becomes highly charged so that any touching
+         (TOUCH)     350   tanks will be badly damaged. The price is  strangely
+                           low, to discourage tanks from trapping one another.
+
+      DEFLECTOR      0/0   The Deflector will force all in-coming  missiles  to
+         (DEFLE)     2200  suddenly reverse direction, changing from  an  enemy
+                           missile to one of your own. Although the device does
+                           not use weapon energy, remember that  excessive  use
+                           will costs money. Like many weapons, it can be  used
+                           with innovation, such converting enemy  SWIRLERS  or
+                           GUIDERS to work for your own tank or detonate bombs.
+
+      ECM WIPER      0/4   The Wiper destroys every missile in the zone. It  is
+         (WIPE)      800   usually used to aid a friend in teams mode.
+
+      CONFUSOR       0/0   Without using up any energy, this device causes  all
+         (ECM)       480   guided missiles to ignore the tank. It is good value
+                           but only really useful for players who are  fast  at
+                           selecting different weapons.
+
+
+   PORT 7  (Harmless Defense)
+
+      HEALER        10/10  The Healers convert weapon energy to shield  energy.
+         (HEAL)      350   This Healer is only used when the player has  excess
+                           weapon energy but is critically down on shields.
+
+      GLOW SHIELD    0/15  Glow shields give complete protection for just a few
+         (GLOW)      800   seconds. They are used for getting away from a bunch
+                           of close fighting tanks or for attacking in safety.
+                           The best use is to turn the shield on, move up  very
+                           close to a tank, and fire a  highly  damaging  short
+                           range weapon, such as the QUINT BREAKER.
+
+      FADE SHIELD    0/20  The FADE SHIELD is a cloaking device.  It  works  by
+         (FADE)      1200  bending light around the tank, and then  letting  it
+                           resume its original direction,  effectively  letting
+                           light pass through the tank. The FADE  shield  lasts
+                           twice as long as the GLOW shield.
+
+      TELEPORT SELF  0/4   This device is useful for  escaping  from  desperate
+         (TELEP)     2000  situations or for freeing yourself  when  stuck.  It
+                           uses very little energy when its fantastic power  is
+                           considered. It can also be useful in Team mode.
+
+
+TOOL DESCRIPTIONS:
+
+      RED DOT        150 - A red dot  appears  inside  the  tank  whenever  the
+                           current weapon is not fireable. Its low price  makes
+                           it a standard add-on for most.
+      TANK UPGRADES      - You can buy tank upgrades involving speed,  rate  of
+                           rotation, and armour. Each upgrade  costs  the  same
+                           price as the tank, and it is only  possible  to  buy
+                           one of each upgrade per tank.
+
+                                                                         page 11
+
+      SHOPPING CARD 2200 - The  common  shoppers  can  buy  a  D-Zone  discount
+                           membership and receive all items for  only  75%  the
+                           original price - a definite requirement for the long
+                           round games.
+      SCORE BRIBE   2500 - This is normally used to convert your residual money
+                           into points just before the end of the game.
+      FAST RECHARGE 5300 - Increases the weapon recharge rate by fifty percent.
+                           If you have many rounds left, save up for this.
+      FUEL UPGRADE  8400 - This, the most powerful item available,  will  cause
+                           any damage done by you to increase by 66%. The  FUEL
+                           UPGRADE is expensive, but when your score and  money
+                           is effectively going up by an extra 66% I'm sure you
+                           will agree that it's worth saving for.
+      RAPID FIRE     450 - This item enables the player to fire rapidly by just
+                           holding down the fire button. This item only affects
+                           port 1 weapons. Ports 2 to 7 are not affected.
+      AUTO HEAL     4800 - Auto Heal allows the shields to slowly recharge, but
+                           it is only effective for about the first half minute
+                           of each round.
+      LARGER DEATH   800 - This allows the tank's explosion to do twenty  times
+                           more damage than usual. Enormous damage can be  done
+                           by positioning the tank side to side with the enemy,
+                           forming a rectangle, before being destroyed.
+      TANK TURRET   1400 - Each tank may have a turret installed,  which  holds
+                           all the weapon ports. It must be re-installed  every
+                           time a new tank is bought. The  turrets  serve  many
+                           purposes, depending on the weapon being  used.  Read
+                           'Controlling Tank' to learn how to steer the turret.
+
+
+DESCRIPTION OF ROBOT TANKS:
+
+
+      R1 PROTOTYPE       - These tanks are very slow thinkers and  also  rather
+                           nervous, so they only dare attack the tank with  the
+                           lowest score. Don't be too hard on them.
+      R2 AIMER           - The Aimers don't like to move around very much,  but
+                           they are good at using turrets. Aimers generally aim
+                           for the closest tank.
+      R3 SEEKER          - This type of robot avoids the  long  range  fighting
+                           style and saves all of its weapon energy  for  quick
+                           kills at short range. They have a faster firing rate
+                           than the AIMERS which makes them a  dangerous  enemy
+                           when they are close. They always aim for the closest
+                           tank.
+      R4 HUNTER          - Only the leaders of  the  game should  be  concerned
+                           with the Hunters. They will not even try  to  attack
+                           those which it thinks are inferior. It is  not  very
+                           difficult to take advantage of the Hunter's pride.
+      R5 DESTROYER       - The Destroyers will  viciously  attack  the  closest
+                           tank in range at all times, particularly by the  use
+                           of turrets. Because these tanks, like  the  Hunters,
+                           are fairly efficient with their firing, they tend to
+                           have a lot of credits left over at the end of a long
+                           game, which they spend on SCORE BRIBES - so remember
+                           to compare your credits aswell as  your  score  with
+                           the DESTROYER towards the end of the game.
+
+                                                                         page 12
+SPECIAL MISSIONS
+
+The missions are described from the SHOW MISSIONS option at the main  menu.  It
+is up to you to set the game up (types of tanks, number of players, etc .. ) to
+fit the mission description. Sometimes there is only one way to set the game up
+but other missions allow more freedom and so the setup process becomes part  of
+the challenge, and requires your imagination.
+
+If you succeed in any of the missions, a message such as 'mission 1 completed'
+will appear on the final score-board in the colour of the corresponding tank.
+
+Missions are not listed in any particular order. Read the descriptions very
+carefully or you may miss out on a vital piece of information.
+
+
+
+
+
+
+
+
+
+
+                                 REGISTRATION
+
+   If you enjoy this game, you should get a registered version which only costs
+$25. For this you will receive a password corresponding to your name that  will
+remove the annoying message at the start, and prevents the game  from  quitting
+suddenly in the middle. Remember that further development to this game  depends
+only on how much support I get from you. So far, each letter has given  me  the
+enthusiasm to add one or two new things to the game.  Without  any  letters,  I
+wouldn't make any changes to the game, after spending about six  hundred  hours
+planning, programming and testing.
+
+   Payers can send an extra $5 to have the latest version of D-Zone  posted  to
+them on a 3.5" disk. I only release a few versions below the latest publicly so
+the latest versions can only be obtained through myself. (You are assured  that
+the address given below will not change.)
+
+   If you like, include a note explaining any improvements  you would  wish  to
+see in the game, and remember to mention which version you currently have. Your
+ideas may found in the next version.
+
+
+                        Send $25 (with comments) to:
+   
+                        Julian Cochran
+                        43 Bellevue Drive
+                        Bellevue Heights,
+                        South Australia, 5050
+
+                        ph (618) 286-8973
+

@@ -2,6 +2,13 @@
 // Represents a tank in the game
 
 class Tank {
+    // ========================================
+    // Matter.js v2: Static Constants
+    // ========================================
+    static BRAKE_STRENGTH = 12.0;      // 이동 브레이크 강도
+    static ROTATION_BRAKE = 0.4;       // 회전 브레이크 강도
+    static FORCE_SCALE = 0.00008;      // Matter.js 힘 스케일
+
     constructor(options) {
         // Position and movement
         this.id = options.id;
@@ -10,6 +17,10 @@ class Tank {
         this.angle = options.angle || 0;
         this.velocity = { x: 0, y: 0 };
         this.angularVelocity = 0;
+
+        // Matter.js physics body (will be created later)
+        this.body = null;
+        this.physics = options.physics || null;
 
         // Debug tank creation
         console.log(`🏗️ Tank ${this.id} initial position: (${this.x}, ${this.y})`);
@@ -62,7 +73,70 @@ class Tank {
         this.lastFireTime = 0;
         this.fireDelay = 1.0; // seconds between shots
 
+        // Create Matter.js physics body
+        if (this.physics && typeof Matter !== 'undefined') {
+            this.createPhysicsBody();
+        }
+
         console.log(`🚗 Tank created: ${this.id} (${this.type}) with upgrades:`, this.upgrades);
+    }
+
+    // ========================================
+    // Matter.js v2: Physics Body Creation
+    // ========================================
+    createPhysicsBody() {
+        const size = this.stats.size * 0.8;
+
+        // 삼각형 꼭짓점 (탱크 모양)
+        const vertices = [
+            { x: 0, y: -size },                 // 앞쪽
+            { x: -size * 0.6, y: size * 0.5 },  // 왼쪽 뒤
+            { x: size * 0.6, y: size * 0.5 }    // 오른쪽 뒤
+        ];
+
+        this.body = Matter.Bodies.fromVertices(
+            this.x,
+            this.y,
+            vertices,
+            {
+                // === 무한궤도 시뮬레이션 ===
+                friction: window.tuningParams?.friction || 0.8,
+                frictionStatic: 1.0,
+                frictionAir: window.tuningParams?.frictionAir || 0.12,
+
+                // === 탱크 중량 ===
+                density: window.tuningParams?.density || 0.08,
+
+                // === 충돌 특성 ===
+                restitution: 0.1,        // 낮은 반발
+                inertia: Infinity,       // 충돌로 인한 회전 차단
+
+                // === 식별 ===
+                label: `tank_${this.id}`,
+                plugin: {
+                    tankId: this.id
+                }
+            },
+            true  // flagInternal
+        );
+
+        // 초기 각도 설정
+        Matter.Body.setAngle(this.body, this.angle);
+
+        // 월드에 추가
+        if (this.physics) {
+            this.physics.addBody(this.body);
+        }
+
+        console.log(`🔧 Tank ${this.id} Matter.js body created: mass=${this.body.mass.toFixed(1)}`);
+    }
+
+    destroyPhysicsBody() {
+        if (this.body && this.physics) {
+            this.physics.removeBody(this.body);
+            this.body = null;
+            console.log(`🗑️ Tank ${this.id} Matter.js body destroyed`);
+        }
     }
     
     applyUpgrades() {
@@ -173,8 +247,14 @@ class Tank {
     update(deltaTime) {
         if (!this.isAlive) return;
 
-        // Update physics (using original custom physics)
-        Physics.updateTankMovement(this, deltaTime);
+        // Update physics
+        if (this.body && this.physics) {
+            // Matter.js 물리 업데이트
+            this.updateWithMatterPhysics(deltaTime);
+        } else {
+            // 원본 물리 업데이트 (fallback)
+            Physics.updateTankMovement(this, deltaTime);
+        }
 
         // Regenerate weapon energy
         this.weaponEnergy = Math.min(
@@ -185,6 +265,122 @@ class Tank {
         // Reset control inputs
         this.thrustPower = 0;
         this.rotationPower = 0;
+    }
+
+    // ========================================
+    // Matter.js v2: 브레이크 시스템 포함 물리 업데이트 ⭐
+    // ========================================
+    updateWithMatterPhysics(deltaTime) {
+        if (!this.body) return;
+
+        const body = this.body;
+        const stats = this.stats;
+
+        // ========================================
+        // 1. 추진 또는 브레이크
+        // ========================================
+
+        if (this.thrustPower !== 0) {
+            // === 추진 중 ===
+
+            // 원본 물리 값 그대로 사용
+            const thrustMagnitude = this.thrustPower * stats.speed * 200;
+
+            // 추진 방향 (탱크가 향하는 방향)
+            const thrustDir = Physics.fromAngle(body.angle, 1);
+
+            // Matter.js 힘으로 변환
+            const force = {
+                x: thrustDir.x * thrustMagnitude * Tank.FORCE_SCALE,
+                y: thrustDir.y * thrustMagnitude * Tank.FORCE_SCALE
+            };
+
+            Matter.Body.applyForce(body, body.position, force);
+
+        } else {
+            // === 브레이크 작동 🔴 ===
+
+            // 현재 속도에 비례한 브레이크 힘
+            const currentSpeed = Math.sqrt(
+                body.velocity.x ** 2 + body.velocity.y ** 2
+            );
+
+            if (currentSpeed > 0.1) {  // 최소 속도 이상일 때만
+                const brakeForce = {
+                    x: -body.velocity.x * Tank.BRAKE_STRENGTH * Tank.FORCE_SCALE,
+                    y: -body.velocity.y * Tank.BRAKE_STRENGTH * Tank.FORCE_SCALE
+                };
+
+                Matter.Body.applyForce(body, body.position, brakeForce);
+            } else {
+                // 완전 정지
+                Matter.Body.setVelocity(body, { x: 0, y: 0 });
+            }
+        }
+
+        // ========================================
+        // 2. 회전 또는 회전 브레이크
+        // ========================================
+
+        if (this.rotationPower !== 0) {
+            // === 회전 중 ===
+
+            // 원본 물리 값 그대로 사용
+            const rotationAccel = this.rotationPower * stats.rotationSpeed * 3 * deltaTime;
+
+            // 각속도에 가속도 추가
+            const newAngularVel = body.angularVelocity + rotationAccel;
+
+            // 최대 회전 속도 제한
+            const maxAngularSpeed = stats.rotationSpeed * 5;
+            const clampedAngularVel = Math.max(
+                -maxAngularSpeed,
+                Math.min(maxAngularSpeed, newAngularVel)
+            );
+
+            Matter.Body.setAngularVelocity(body, clampedAngularVel);
+
+        } else {
+            // === 회전 브레이크 🔴 ===
+
+            if (Math.abs(body.angularVelocity) > 0.01) {
+                // 회전 속도에 비례한 브레이크
+                const angularBrake = body.angularVelocity * Tank.ROTATION_BRAKE;
+                Matter.Body.setAngularVelocity(
+                    body,
+                    body.angularVelocity - angularBrake
+                );
+            } else {
+                // 완전 정지
+                Matter.Body.setAngularVelocity(body, 0);
+            }
+        }
+
+        // ========================================
+        // 3. 속도 제한 (안전장치)
+        // ========================================
+
+        // 최대 이동 속도
+        const maxSpeed = stats.speed * 100;
+        const currentSpeed = Math.sqrt(body.velocity.x ** 2 + body.velocity.y ** 2);
+
+        if (currentSpeed > maxSpeed) {
+            const scale = maxSpeed / currentSpeed;
+            Matter.Body.setVelocity(body, {
+                x: body.velocity.x * scale,
+                y: body.velocity.y * scale
+            });
+        }
+
+        // ========================================
+        // 4. 동기화
+        // ========================================
+
+        this.x = body.position.x;
+        this.y = body.position.y;
+        this.angle = body.angle;
+        this.velocity = { ...body.velocity };
+        this.angularVelocity = body.angularVelocity;
     }
     
     thrust(power) {

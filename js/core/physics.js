@@ -1,39 +1,173 @@
-// Physics Engine - Custom 2D Physics
-// Matter.js library is available but not currently used
+// Physics Engine - Matter.js v2 (With Brake System)
+// 브레이크 시스템을 포함한 현실적인 탱크 물리
 
 class Physics {
     constructor(canvasWidth, canvasHeight) {
-        // Physics constants
-        this.gravity = 0; // No gravity in space station
-        this.friction = 0.95; // Air resistance
-        this.restitution = 0.8; // Bounce factor
+        // Physics constants (for original physics - kept for reference)
+        this.gravity = 0;
+        this.friction = 0.95;
+        this.restitution = 0.8;
 
-        console.log('⚡ Physics engine initialized (Custom)');
+        this.width = canvasWidth;
+        this.height = canvasHeight;
 
-        // Matter.js code commented out for future use
-        /*
-        // Create Matter.js engine
-        this.engine = Matter.Engine.create({
-            gravity: { x: 0, y: 0 },
-            enableSleeping: false
-        });
-        this.world = this.engine.world;
-        if (canvasWidth && canvasHeight) {
-            this.createBoundaries(canvasWidth, canvasHeight);
+        // ========================================
+        // Matter.js v2: Engine Creation
+        // ========================================
+        if (typeof Matter !== 'undefined') {
+            // Create Matter.js engine
+            this.engine = Matter.Engine.create({
+                gravity: { x: 0, y: 0 },  // 탑다운 뷰 (중력 없음)
+                enableSleeping: false
+            });
+            this.world = this.engine.world;
+
+            // 경계벽 생성
+            if (canvasWidth && canvasHeight) {
+                this.createBoundaries(canvasWidth, canvasHeight);
+            }
+
+            // 충돌 콜백 저장
+            this.collisionCallbacks = {
+                tankTank: null,
+                projectileTank: null,
+                projectileWall: null
+            };
+
+            // 충돌 이벤트 설정
+            this.setupCollisionEvents();
+
+            console.log('⚡ Physics engine initialized (Matter.js v2 with Brake System)');
+        } else {
+            console.warn('⚠️ Matter.js not loaded, falling back to custom physics');
         }
-        this.bodies = new Map();
-        this.collisionCallbacks = {
-            tankTank: null,
-            projectileTank: null,
-            projectileWall: null
-        };
-        this.setupCollisionEvents();
-        */
     }
 
     update(deltaTime) {
-        // Physics updates are handled by individual entities
-        // This method can be used for global physics effects
+        // Matter.js 시뮬레이션 업데이트
+        if (this.engine) {
+            // deltaTime을 밀리초로 변환 (Matter.js는 ms 단위)
+            Matter.Engine.update(this.engine, deltaTime * 1000);
+        }
+    }
+
+    // ========================================
+    // Matter.js v2: Body Management
+    // ========================================
+    addBody(body) {
+        if (this.world && body) {
+            Matter.World.add(this.world, body);
+        }
+    }
+
+    removeBody(body) {
+        if (this.world && body) {
+            Matter.World.remove(this.world, body);
+        }
+    }
+
+    // ========================================
+    // Matter.js v2: Boundaries
+    // ========================================
+    createBoundaries(width, height) {
+        const wallThickness = 50;
+        const options = {
+            isStatic: true,
+            friction: 0.8,
+            restitution: 0.1,
+            label: 'wall'
+        };
+
+        const walls = [
+            // 위
+            Matter.Bodies.rectangle(
+                width / 2, -wallThickness / 2,
+                width, wallThickness, options
+            ),
+            // 아래
+            Matter.Bodies.rectangle(
+                width / 2, height + wallThickness / 2,
+                width, wallThickness, options
+            ),
+            // 왼쪽
+            Matter.Bodies.rectangle(
+                -wallThickness / 2, height / 2,
+                wallThickness, height, options
+            ),
+            // 오른쪽
+            Matter.Bodies.rectangle(
+                width + wallThickness / 2, height / 2,
+                wallThickness, height, options
+            )
+        ];
+
+        Matter.World.add(this.world, walls);
+        console.log('🧱 Matter.js boundaries created');
+    }
+
+    // ========================================
+    // Matter.js v2: Collision Events
+    // ========================================
+    setupCollisionEvents() {
+        if (!this.engine) return;
+
+        Matter.Events.on(this.engine, 'collisionStart', (event) => {
+            event.pairs.forEach(pair => {
+                this.handleCollision(pair.bodyA, pair.bodyB, pair);
+            });
+        });
+    }
+
+    handleCollision(bodyA, bodyB, pair) {
+        const labelA = bodyA.label;
+        const labelB = bodyB.label;
+
+        // Tank ↔ Tank 충돌
+        if (labelA.startsWith('tank_') && labelB.startsWith('tank_')) {
+            if (this.collisionCallbacks.tankTank) {
+                const impactVelocity = pair.collision.depth;
+                if (impactVelocity > 2) {
+                    const damage = Math.floor(impactVelocity * 0.5);
+                    this.collisionCallbacks.tankTank(bodyA, bodyB, damage);
+                }
+            }
+        }
+
+        // Projectile ↔ Tank 충돌
+        if (labelA.startsWith('projectile_') && labelB.startsWith('tank_')) {
+            if (this.collisionCallbacks.projectileTank) {
+                this.collisionCallbacks.projectileTank(bodyA, bodyB);
+            }
+        }
+        if (labelA.startsWith('tank_') && labelB.startsWith('projectile_')) {
+            if (this.collisionCallbacks.projectileTank) {
+                this.collisionCallbacks.projectileTank(bodyB, bodyA);
+            }
+        }
+
+        // Projectile ↔ Wall 충돌
+        if (labelA.startsWith('projectile_') && labelB === 'wall') {
+            if (this.collisionCallbacks.projectileWall) {
+                this.collisionCallbacks.projectileWall(bodyA);
+            }
+        }
+        if (labelA === 'wall' && labelB.startsWith('projectile_')) {
+            if (this.collisionCallbacks.projectileWall) {
+                this.collisionCallbacks.projectileWall(bodyB);
+            }
+        }
+    }
+
+    onTankTankCollision(callback) {
+        this.collisionCallbacks.tankTank = callback;
+    }
+
+    onProjectileTankCollision(callback) {
+        this.collisionCallbacks.projectileTank = callback;
+    }
+
+    onProjectileWallCollision(callback) {
+        this.collisionCallbacks.projectileWall = callback;
     }
 
     // Matter.js methods commented out for future use

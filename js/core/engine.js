@@ -9,25 +9,51 @@ class GameEngine {
         // Core systems
         this.state = new GameState();
         this.renderer = new Renderer(this.ctx);
-        this.physics = new Physics();
+        this.physics = new Physics(canvas.width, canvas.height);  // Matter.js v2: 캔버스 크기 전달
         this.input = new InputManager();
-        
+
         // Game systems
         this.collisionSystem = new CollisionSystem();
         this.scoringSystem = new ScoringSystem();
         this.shopSystem = new ShopSystem(this.state);
-        
+
         // Game entities
         this.tanks = [];
         this.projectiles = [];
         this.explosions = [];
-        
+
         // Game timing
         this.gameTime = 0;
         this.round = 1;
         this.isPaused = false;
-        
+
+        // Matter.js v2: 충돌 콜백 설정
+        this.setupPhysicsCollisions();
+
         console.log('🎮 GameEngine initialized');
+    }
+
+    // ========================================
+    // Matter.js v2: 충돌 콜백 설정
+    // ========================================
+    setupPhysicsCollisions() {
+        if (!this.physics.engine) return;
+
+        // Tank ↔ Tank 충돌
+        this.physics.onTankTankCollision((bodyA, bodyB, damage) => {
+            const tankA = this.getTankByBody(bodyA);
+            const tankB = this.getTankByBody(bodyB);
+
+            if (tankA && tankB) {
+                tankA.takeDamage(damage);
+                tankB.takeDamage(damage);
+                console.log(`💥 Tank collision: ${damage} damage`);
+            }
+        });
+    }
+
+    getTankByBody(body) {
+        return this.tanks.find(tank => tank.body === body);
     }
     
     startNewGame() {
@@ -81,7 +107,8 @@ class GameEngine {
             isPlayer: true,
             controls: GAME_CONFIG.CONTROLS.PLAYER1,
             upgrades: playerData ? playerData.upgrades : undefined,
-            ownedWeapons: playerData ? playerData.ownedWeapons : undefined
+            ownedWeapons: playerData ? playerData.ownedWeapons : undefined,
+            physics: this.physics  // Matter.js v2: physics 전달
         });
 
         // Create AI tank (top-right corner)
@@ -92,7 +119,8 @@ class GameEngine {
             angle: Math.PI + Math.PI / 4, // 225 degrees, facing toward center
             type: 'STANDARD',
             isPlayer: false,
-            aiLevel: 1
+            aiLevel: 1,
+            physics: this.physics  // Matter.js v2: physics 전달
         });
 
         this.tanks.push(playerTank, aiTank);
@@ -477,6 +505,9 @@ class GameEngine {
         this.explosions.forEach(explosion => {
             this.renderer.renderExplosion(explosion);
         });
+
+        // Matter.js v2: 물리 디버그 렌더링
+        this.renderer.renderPhysicsDebug(this.physics);
 
         // Render UI overlay
         this.renderer.renderUI(this.state);

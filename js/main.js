@@ -327,10 +327,18 @@ class Game {
 
     updateTankParams() {
         // Tank 클래스의 static 속성 업데이트
-        if (window.Tank) {
+        if (typeof Tank !== 'undefined') {
             Tank.BRAKE_STRENGTH = window.tuningParams.BRAKE_STRENGTH;
             Tank.ROTATION_BRAKE = window.tuningParams.ROTATION_BRAKE;
             Tank.FORCE_SCALE = window.tuningParams.FORCE_SCALE;
+
+            console.log('✅ Tank static params updated:', {
+                BRAKE_STRENGTH: Tank.BRAKE_STRENGTH,
+                ROTATION_BRAKE: Tank.ROTATION_BRAKE,
+                FORCE_SCALE: Tank.FORCE_SCALE
+            });
+        } else {
+            console.warn('⚠️ Tank class not found');
         }
 
         // 현재 탱크들의 물리 바디 업데이트
@@ -338,6 +346,8 @@ class Game {
             this.engine.tanks.forEach(tank => {
                 if (tank.body) {
                     tank.body.frictionAir = window.tuningParams.frictionAir;
+                    tank.body.friction = window.tuningParams.friction;
+                    console.log(`✅ Tank ${tank.id} body updated: frictionAir=${tank.body.frictionAir}`);
                 }
             });
         }

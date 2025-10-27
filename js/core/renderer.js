@@ -271,12 +271,17 @@ class Renderer {
 
         // Render Matter.js debug stats
         if (window.debugMode && window.debugMode.stats) {
-            this.renderMatterStats(gameState);
+            // gameState에 tanks가 없으면 engine에서 가져오기
+            const tanks = gameState.tanks || (window.game && window.game.engine ? window.game.engine.tanks : []);
+            this.renderMatterStats({ ...gameState, tanks });
         }
 
         // Render velocity vectors
-        if (window.debugMode && window.debugMode.velocityVectors && gameState.tanks) {
-            this.renderVelocityVectors(gameState.tanks);
+        if (window.debugMode && window.debugMode.velocityVectors) {
+            const tanks = gameState.tanks || (window.game && window.game.engine ? window.game.engine.tanks : []);
+            if (tanks && tanks.length > 0) {
+                this.renderVelocityVectors(tanks);
+            }
         }
     }
 

@@ -132,7 +132,8 @@ class GameEngine {
     
     update(deltaTime) {
         if (this.isPaused) return;
-        
+
+        this.lastDeltaTime = deltaTime;
         this.gameTime += deltaTime;
         
         // Update tanks
@@ -509,8 +510,14 @@ class GameEngine {
         // Matter.js v2: 물리 디버그 렌더링
         this.renderer.renderPhysicsDebug(this.physics);
 
-        // Render UI overlay
-        this.renderer.renderUI(this.state);
+        // Render UI overlay (tanks 정보 포함)
+        this.renderer.renderUI({
+            ...this.state,
+            tanks: this.tanks,
+            projectiles: this.projectiles,
+            explosions: this.explosions,
+            deltaTime: this.lastDeltaTime || 0.016
+        });
 
         // Update HUD
         this.updateHUD();

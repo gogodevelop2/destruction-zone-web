@@ -268,6 +268,16 @@ class Renderer {
         if (GAME_CONFIG.DEBUG_MODE) {
             this.renderDebugInfo(gameState);
         }
+
+        // Render Matter.js debug stats
+        if (window.debugMode && window.debugMode.stats) {
+            this.renderMatterStats(gameState);
+        }
+
+        // Render velocity vectors
+        if (window.debugMode && window.debugMode.velocityVectors && gameState.tanks) {
+            this.renderVelocityVectors(gameState.tanks);
+        }
     }
 
     renderPhysicsDebug(physics) {
@@ -398,17 +408,148 @@ class Renderer {
         this.ctx.fillStyle = '#00ff00';
         this.ctx.font = '14px monospace';
         this.ctx.textAlign = 'left';
-        
+
         const debugInfo = [
             `FPS: ${Math.round(1 / (gameState.deltaTime || 0.016))}`,
             `Game Time: ${gameState.gameTime?.toFixed(1) || 0}s`,
             `Round: ${gameState.round || 1}`,
             `Entities: T${gameState.tanks?.length || 0} P${gameState.projectiles?.length || 0} E${gameState.explosions?.length || 0}`
         ];
-        
+
         debugInfo.forEach((text, index) => {
             this.ctx.fillText(text, 10, 30 + index * 20);
         });
+    }
+
+    renderMatterStats(gameState) {
+        const x = this.canvas.width - 300;
+        const y = 100;
+        const lineHeight = 18;
+        let currentY = y;
+
+        this.ctx.save();
+
+        // Background box
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(x - 10, y - 20, 290, 250);
+
+        // Title
+        this.ctx.fillStyle = '#ffff00';
+        this.ctx.font = 'bold 16px monospace';
+        this.ctx.textAlign = 'left';
+        this.ctx.fillText('MATTER.JS STATS', x, currentY);
+        currentY += lineHeight * 1.5;
+
+        // Tuning parameters
+        this.ctx.fillStyle = '#00ffff';
+        this.ctx.font = '14px monospace';
+        this.ctx.fillText('Tuning Parameters:', x, currentY);
+        currentY += lineHeight;
+
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '12px monospace';
+
+        if (window.tuningParams) {
+            const params = [
+                `  BRAKE_STRENGTH: ${window.tuningParams.BRAKE_STRENGTH.toFixed(1)}`,
+                `  ROTATION_BRAKE: ${window.tuningParams.ROTATION_BRAKE.toFixed(2)}`,
+                `  FORCE_SCALE: ${window.tuningParams.FORCE_SCALE.toFixed(5)}`,
+                `  friction: ${window.tuningParams.friction.toFixed(2)}`,
+                `  frictionAir: ${window.tuningParams.frictionAir.toFixed(2)}`,
+                `  density: ${window.tuningParams.density.toFixed(2)}`
+            ];
+
+            params.forEach(param => {
+                this.ctx.fillText(param, x, currentY);
+                currentY += lineHeight;
+            });
+        }
+
+        currentY += lineHeight * 0.5;
+
+        // Tank stats (if available)
+        if (gameState.tanks && gameState.tanks.length > 0) {
+            const tank = gameState.tanks[0];
+
+            this.ctx.fillStyle = '#00ffff';
+            this.ctx.font = '14px monospace';
+            this.ctx.fillText('Tank Stats:', x, currentY);
+            currentY += lineHeight;
+
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '12px monospace';
+
+            const speed = tank.body ?
+                Math.sqrt(tank.body.velocity.x ** 2 + tank.body.velocity.y ** 2) :
+                Math.sqrt(tank.velocity.x ** 2 + tank.velocity.y ** 2);
+
+            const angularSpeed = tank.body ?
+                Math.abs(tank.body.angularVelocity) :
+                Math.abs(tank.angularVelocity || 0);
+
+            const tankStats = [
+                `  Speed: ${speed.toFixed(1)} px/s`,
+                `  Max Speed: ${(tank.stats.speed * 100).toFixed(0)} px/s`,
+                `  Angular: ${angularSpeed.toFixed(3)} rad/s`,
+                `  Max Angular: ${(tank.stats.rotationSpeed * 5).toFixed(1)} rad/s`,
+                tank.body ? `  Mass: ${tank.body.mass.toFixed(1)}` : `  Mass: N/A`
+            ];
+
+            tankStats.forEach(stat => {
+                this.ctx.fillText(stat, x, currentY);
+                currentY += lineHeight;
+            });
+        }
+
+        this.ctx.restore();
+    }
+
+    renderVelocityVectors(tanks) {
+        this.ctx.save();
+
+        tanks.forEach(tank => {
+            if (!tank.isAlive) return;
+
+            const velocity = tank.body ? tank.body.velocity : tank.velocity;
+            if (!velocity) return;
+
+            // Draw velocity vector
+            this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.moveTo(tank.x, tank.y);
+            this.ctx.lineTo(
+                tank.x + velocity.x * 2,
+                tank.y + velocity.y * 2
+            );
+            this.ctx.stroke();
+
+            // Draw arrow head
+            const angle = Math.atan2(velocity.y, velocity.x);
+            const headLength = 10;
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(
+                tank.x + velocity.x * 2,
+                tank.y + velocity.y * 2
+            );
+            this.ctx.lineTo(
+                tank.x + velocity.x * 2 - headLength * Math.cos(angle - Math.PI / 6),
+                tank.y + velocity.y * 2 - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            this.ctx.lineTo(
+                tank.x + velocity.x * 2 - headLength * Math.cos(angle + Math.PI / 6),
+                tank.y + velocity.y * 2 - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            this.ctx.lineTo(
+                tank.x + velocity.x * 2,
+                tank.y + velocity.y * 2
+            );
+            this.ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+            this.ctx.fill();
+        });
+
+        this.ctx.restore();
     }
     
     // Utility drawing methods

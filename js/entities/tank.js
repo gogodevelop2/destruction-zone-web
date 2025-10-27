@@ -87,17 +87,11 @@ class Tank {
     createPhysicsBody() {
         const size = this.stats.size * 0.8;
 
-        // 삼각형 꼭짓점 (탱크 모양)
-        const vertices = [
-            { x: 0, y: -size },                 // 앞쪽
-            { x: -size * 0.6, y: size * 0.5 },  // 왼쪽 뒤
-            { x: size * 0.6, y: size * 0.5 }    // 오른쪽 뒤
-        ];
-
-        this.body = Matter.Bodies.fromVertices(
+        // 원형 바디로 간단하게 시작 (삼각형은 나중에)
+        this.body = Matter.Bodies.circle(
             this.x,
             this.y,
-            vertices,
+            size,
             {
                 // === 무한궤도 시뮬레이션 ===
                 friction: window.tuningParams?.friction || 0.8,
@@ -116,8 +110,7 @@ class Tank {
                 plugin: {
                     tankId: this.id
                 }
-            },
-            true  // flagInternal
+            }
         );
 
         // 초기 각도 설정

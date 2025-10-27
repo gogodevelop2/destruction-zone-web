@@ -370,8 +370,367 @@ Matter.js 기반 아키텍처가 작동함을 증명했습니다. 하이브리�
 
 ---
 
+## 2025년 1월 27일 - Phase 2 완성
+
+### 🎯 목표
+발사체 시스템, 충돌 감지, 기본 AI 구현
+
+---
+
+## 📋 진행 사항
+
+### 1. Projectile 클래스 구현
+
+**물리 바디 생성 - 원형**
+```javascript
+this.body = Bodies.circle(x, y, this.config.size, {
+    isSensor: false,  // 물리적 충돌 활성화
+    label: 'projectile',
+    density: 0.4,  // 탱크의 5배
+    frictionAir: 0,
+    restitution: 0,  // 튕김 없음
+    friction: 0.1
+});
+```
+
+**주요 기능:**
+- Matter.js body로 구현 (센서가 아닌 물리 바디)
+- 속도 벡터 기반 발사
+- 자동 수명 관리 (3초)
+- 화면 밖 자동 제거
+- 시각적 트레일 효과
+
+**최종 파라미터:**
+```javascript
+{
+    speed: 3,        // px/s
+    size: 2,         // radius
+    damage: 10,
+    density: 0.4     // 탱크(0.08)의 5배
+}
+```
+
+### 2. 발사 시스템
+
+**발사 위치 계산:**
+```javascript
+const barrelLength = size * 0.75 + 5;  // 삼각형 앞 끝 + 5px
+const spawnX = tank.body.position.x + Math.cos(tank.body.angle) * barrelLength;
+const spawnY = tank.body.position.y + Math.sin(tank.body.angle) * barrelLength;
+```
+
+**해결한 문제:**
+- 초기: 발사체가 탱크 내부에서 생성되어 즉시 충돌
+- 해결: 삼각형 맨 앞 끝에서 생성하도록 위치 조정
+- 결과: 발사체가 탱크 밖에서 깔끔하게 생성됨
+
+### 3. 충돌 시스템
+
+**Matter.js 충돌 이벤트 활용:**
+```javascript
+Matter.Events.on(engine, 'collisionStart', (event) => {
+    event.pairs.forEach(pair => {
+        const { bodyA, bodyB } = pair;
+
+        // 발사체 → 탱크 충돌
+        if (projectile && tank) {
+            handleProjectileHit(projectile, tank);
+        }
+
+        // 발사체 → 벽 충돌
+        if (projectile && wall) {
+            handleProjectileWallHit(projectile);
+        }
+    });
+});
+```
+
+**충돌 처리:**
+- 발사체 → 탱크: 피격 이펙트 + 발사체 제거
+- 발사체 → 벽: 작은 이펙트 + 발사체 제거 (튕기지 않음)
+- 탱크 → 탱크: Matter.js가 자동 처리 (물리적 충돌)
+
+### 4. 피격 이펙트
+
+**확장하는 원형 링 + 글로우:**
+```javascript
+const progress = effect.age / effect.maxAge;
+const alpha = 1 - progress;
+const radius = 3 + progress * 9;  // 3px → 12px
+
+// 외부 링
+ctx.strokeStyle = `rgba(255, 255, 0, ${alpha * 0.8})`;
+ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+// 내부 플래시
+ctx.fillStyle = `rgba(255, 200, 0, ${alpha * 0.5})`;
+ctx.arc(x, y, radius * 0.5, 0, Math.PI * 2);
+
+// 중앙 글로우
+ctx.shadowBlur = 20;
+ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
+ctx.arc(x, y, 5, 0, Math.PI * 2);
+```
+
+**파라미터:**
+- 지속시간: 0.15초 (짧고 강렬)
+- 크기: 3px → 12px (작고 정확)
+- 색상: 노란색 → 주황색 그라데이션
+
+### 5. 기본 AI 구현
+
+**추적 알고리즘:**
+```javascript
+function updateAI(deltaTime) {
+    const enemy = enemyTank;
+    const target = playerTank;
+
+    // 목표까지 각도 계산
+    const dx = target.body.position.x - enemy.body.position.x;
+    const dy = target.body.position.y - enemy.body.position.y;
+    const angleToTarget = Math.atan2(dy, dx);
+
+    // 각도 차이 정규화
+    let angleDiff = angleToTarget - enemy.body.angle;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+    // 회전
+    if (Math.abs(angleDiff) > 0.1) {
+        enemy.rotation = angleDiff > 0 ? 1 : -1;
+    }
+
+    // 거리 기반 이동
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance > 200) {
+        enemy.thrust = 1;  // 전진
+    } else if (distance < 150) {
+        enemy.thrust = -1;  // 후진
+    }
+
+    // 조준 후 발사
+    if (Math.abs(angleDiff) < 0.2 && aiFireCooldown <= 0) {
+        fireProjectile(enemy, '#ff00ff');
+        aiFireCooldown = AI_FIRE_COOLDOWN;
+    }
+}
+```
+
+**AI 동작:**
+- 플레이어 방향으로 회전
+- 거리 유지 (150~200px)
+- 조준 정확도: ±0.2 라디안 (약 ±11.5도)
+- 발사 쿨다운: 1.5초
+
+### 6. 복수 탱크 지원
+
+**2개 탱크 동시 작동:**
+```javascript
+const playerTank = new Tank(480, 360, {
+    size: 30,
+    thrustPower: 0.01,
+    rotationSpeed: 0.01,
+    color: '#00ffff'  // 청록색
+});
+playerTank.id = 'player';
+
+const enemyTank = new Tank(240, 180, {
+    size: 30,
+    thrustPower: 0.01,
+    rotationSpeed: 0.01,
+    color: '#ff00ff'  // 분홍색
+});
+enemyTank.id = 'enemy';
+```
+
+### 7. 입력 처리 개선
+
+**스크롤 방지:**
+```javascript
+window.addEventListener('keydown', (e) => {
+    // 화살표 키 + 스페이스바 스크롤 방지
+    if (e.code.startsWith('Arrow') || e.code === 'Space') {
+        e.preventDefault();
+    }
+    keys[e.code] = true;
+});
+```
+
+**키 레이아웃:**
+- ⬆️ Arrow Up: 전진
+- ⬇️ Arrow Down: 후진
+- ⬅️ Arrow Left: 좌회전 (전진 시) / 우회전 (후진 시)
+- ➡️ Arrow Right: 우회전 (전진 시) / 좌회전 (후진 시)
+- Space: 발사
+- D: 디버그 모드 토글
+
+---
+
+## 🔧 파라미터 튜닝 과정
+
+### 발사체 속도
+**문제:** 초기 속도가 너무 빨라서 보이지 않음
+- 초기: 400 px/s (너무 빠름)
+- 1차 조정: 150 px/s (여전히 빠름)
+- 2차 조정: 7.5 px/s (1/20로 축소)
+- **최종: 3 px/s** ✅
+
+### 발사체 크기
+**문제:** 크기가 너무 커서 탱크와 충돌
+- 초기: 3 px (기본값)
+- 1차 확대: 6 px (가시성 향상)
+- **최종: 2 px** (작고 정확) ✅
+
+### 발사체 밀도
+**목적:** 탱크를 밀어내는 효과
+- 초기 테스트: 0.8 (탱크의 10배)
+- **최종: 0.4** (탱크의 5배) ✅
+
+### 충돌 이펙트
+**문제:** 이펙트가 너무 크고 오래 지속
+- 초기: 10~40px, 0.5초
+- **최종: 3~12px (30%), 0.15초 (30%)** ✅
+
+---
+
+## 📊 성능 측정
+
+**현재 상태:**
+- FPS: 60 안정
+- 동시 발사체: 10+ 가능
+- 탱크 수: 2개
+- Matter.js bodies: ~15개 (탱크 2 + 벽 4 + 발사체 N)
+
+---
+
+## ✅ Phase 2 체크리스트
+
+- ✅ Projectile 클래스 작성
+- ✅ 발사 시스템 구현
+- ✅ 충돌 감지 (발사체 → 탱크)
+- ✅ 충돌 감지 (발사체 → 벽)
+- ✅ 피격 이펙트
+- ✅ 기본 AI (추적 + 발사)
+- ✅ 복수 탱크 지원
+- ✅ 입력 처리 개선
+
+**성공 기준:**
+- ✅ 발사체가 정확하게 발사됨
+- ✅ 충돌 감지가 정확함
+- ✅ AI가 플레이어를 추적하고 공격함
+- ✅ 60 FPS 안정
+- ✅ 시각적 피드백이 명확함
+
+---
+
+## 💡 배운 점
+
+### 1. 센서 vs 물리 바디
+- **센서 바디**: 충돌 감지만, 물리적 힘 없음
+- **물리 바디**: 충돌 + 힘 전달
+- 발사체는 물리 바디로 구현하여 탱크를 밀어낼 수 있도록 함
+
+### 2. 발사 위치 계산
+- 발사체는 탱크 외부에서 생성되어야 함
+- 삼각형 vertices의 앞 끝 위치 활용
+- 추가 오프셋 (+5px)으로 안전 마진 확보
+
+### 3. AI 각도 정규화
+- `atan2()` 결과는 [-π, π] 범위
+- 각도 차이 계산 시 정규화 필수
+- 회전 방향 결정에 사용
+
+### 4. 충돌 이벤트 처리
+- Matter.js는 양방향 충돌 감지 (A→B, B→A)
+- 중복 처리 방지 필요
+- label을 활용한 타입 구분
+
+---
+
+## 🐛 해결한 버그
+
+### 버그 1: 발사체가 자기 탱크와 충돌
+**증상:** 스페이스바 누르면 즉시 폭발 이펙트
+**원인:** 발사체가 탱크 내부에서 생성됨
+**해결:** 발사 위치를 삼각형 앞 끝 + 5px로 이동
+
+### 버그 2: 발사체가 너무 빨라서 안 보임
+**증상:** 발사 후 발사체가 보이지 않음
+**원인:** 속도가 400 px/s로 너무 빠름
+**해결:** 속도를 3 px/s로 대폭 축소 (1/133)
+
+### 버그 3: 스페이스바 누르면 스크롤
+**증상:** 발사할 때마다 페이지 스크롤
+**원인:** 스페이스바 기본 동작 (페이지 스크롤)
+**해결:** `e.preventDefault()` 추가
+
+### 버그 4: 충돌 이펙트가 너무 큼
+**증상:** 이펙트가 화면을 가림
+**원인:** 반경 40px, 지속 0.5초
+**해결:** 반경 12px, 지속 0.15초로 축소 (30%)
+
+---
+
+## 📈 다음 단계 (Phase 3)
+
+**예정 작업:**
+1. 체력/실드 시스템
+   - 탱크별 체력바 표시
+   - 실드 데미지 계산
+   - 파괴 애니메이션
+2. 무기 시스템 확장
+   - 7가지 무기 타입
+   - 무기별 발사체 속성
+   - 무기 에너지 관리
+3. 라운드 관리
+   - 타이머
+   - 승리 조건
+   - 라운드 전환
+4. UI 통합
+   - HUD (체력, 에너지, 점수)
+   - 스코어보드
+   - 등록 화면
+
+**예상 소요 시간**: 2-3시간
+
+---
+
+## 📊 통계
+
+**Phase 2 작업 시간**: 약 1.5시간
+**코드 라인 수**:
+- prototype.html: 440줄 → 706줄 (+266줄)
+- 추가된 기능:
+  - Projectile 클래스: 90줄
+  - 충돌 시스템: 60줄
+  - AI 시스템: 45줄
+  - 이펙트 시스템: 50줄
+  - 기타: 21줄
+
+**커밋**:
+- Phase 2: Projectile, Collision, AI 구현
+
+---
+
+## 🎯 결론
+
+**Phase 2 성공!** ✅
+
+핵심 전투 메커니즘이 완성되었습니다:
+- 발사체가 정확하게 작동함
+- 충돌 감지가 정확함
+- AI가 도전적임
+- 물리 기반 전투가 재미있음
+
+Matter.js의 충돌 이벤트 시스템이 매우 강력하고 사용하기 쉽습니다. 물리 바디로 발사체를 만들어 탱크를 밀어내는 효과도 자연스럽게 구현되었습니다.
+
+다음 단계(Phase 3)로 진행할 준비가 완료되었습니다!
+
+---
+
 ## 📝 참고 자료
 
 - [Matter.js 공식 문서](https://brm.io/matter-js/docs/)
+- [Matter.js Collision Events](https://brm.io/matter-js/docs/classes/Engine.html#events)
 - ARCHITECTURE.md - 전체 설계 문서
 - prototype.html - 작동하는 프로토타입

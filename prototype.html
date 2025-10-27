@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destruction Zone - Matter.js Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000011;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Courier New', monospace;
+            color: #00ffff;
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ffff;
+        }
+
+        #gameCanvas {
+            border: 2px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            background: #000011;
+        }
+
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 100, 150, 0.2);
+            border: 1px solid #00ffff;
+            border-radius: 5px;
+            max-width: 960px;
+        }
+
+        .info h2 {
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .info p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #00dddd;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .key {
+            background: rgba(0, 255, 255, 0.1);
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border: 1px solid #00ffff;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 DESTRUCTION ZONE - Matter.js Prototype</h1>
+
+    <canvas id="gameCanvas" width="960" height="720"></canvas>
+
+    <div class="info">
+        <h2>Controls</h2>
+        <div class="controls">
+            <p class="key">⬆️ Arrow Up - Thrust Forward</p>
+            <p class="key">⬇️ Arrow Down - Thrust Backward</p>
+            <p class="key">⬅️ Arrow Left - Rotate Left</p>
+            <p class="key">➡️ Arrow Right - Rotate Right</p>
+        </div>
+        <p style="margin-top: 10px;">🎯 Goal: Test smooth movement and rotation with Matter.js physics</p>
+    </div>
+
+    <div id="stats"></div>
+
+    <!-- Matter.js Library -->
+    <script src="js/lib/matter.min.js"></script>
+
+    <!-- Prototype Script -->
+    <script>
+        // ============================================
+        // Matter.js Prototype - Single Tank Test
+        // ============================================
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const statsDiv = document.getElementById('stats');
+
+        // Create Matter.js engine
+        const Engine = Matter.Engine;
+        const World = Matter.World;
+        const Bodies = Matter.Bodies;
+        const Body = Matter.Body;
+        const Vector = Matter.Vector;
+
+        const engine = Engine.create({
+            gravity: { x: 0, y: 0 }  // Top-down, no gravity
+        });
+
+        const world = engine.world;
+
+        // Create boundary walls
+        const wallThickness = 50;
+        const walls = [
+            Bodies.rectangle(480, -25, 960, wallThickness, { isStatic: true, label: 'wall' }),
+            Bodies.rectangle(480, 745, 960, wallThickness, { isStatic: true, label: 'wall' }),
+            Bodies.rectangle(-25, 360, wallThickness, 720, { isStatic: true, label: 'wall' }),
+            Bodies.rectangle(985, 360, wallThickness, 720, { isStatic: true, label: 'wall' })
+        ];
+
+        World.add(world, walls);
+
+        // ============================================
+        // Tank Class (Matter.js Wrapper)
+        // ============================================
+        class Tank {
+            constructor(x, y, config) {
+                this.config = {
+                    size: config.size || 30,
+                    thrustPower: config.thrustPower || 0.0003,
+                    rotationSpeed: config.rotationSpeed || 3.0,
+                    color: config.color || '#00ffff'
+                };
+
+                // Create Matter.js body - THIS IS THE TANK
+                this.body = Bodies.circle(x, y, this.config.size * 0.65, {
+                    density: 0.08,
+                    friction: 0.8,
+                    frictionAir: 0.12,
+                    frictionStatic: 1.0,
+                    restitution: 0.1,
+                    label: 'tank'
+                });
+
+                World.add(world, this.body);
+
+                // Input state
+                this.thrust = 0;      // -1, 0, 1
+                this.rotation = 0;    // -1, 0, 1
+            }
+
+            update() {
+                // Apply thrust force
+                if (this.thrust !== 0) {
+                    const forceMagnitude = this.thrust * this.config.thrustPower;
+                    const force = {
+                        x: Math.cos(this.body.angle) * forceMagnitude,
+                        y: Math.sin(this.body.angle) * forceMagnitude
+                    };
+                    Body.applyForce(this.body, this.body.position, force);
+                } else {
+                    // Brake when no thrust
+                    const brakeFactor = 0.05;
+                    Body.setVelocity(this.body, {
+                        x: this.body.velocity.x * (1 - brakeFactor),
+                        y: this.body.velocity.y * (1 - brakeFactor)
+                    });
+                }
+
+                // Apply rotation
+                if (this.rotation !== 0) {
+                    const targetAngularVelocity = this.rotation * this.config.rotationSpeed;
+                    Body.setAngularVelocity(this.body, targetAngularVelocity);
+                } else {
+                    // Stop rotation when no input
+                    const rotationBrake = 0.2;
+                    Body.setAngularVelocity(this.body, this.body.angularVelocity * (1 - rotationBrake));
+                }
+
+                // Reset inputs (will be set by keyboard handler)
+                this.thrust = 0;
+                this.rotation = 0;
+            }
+
+            render(ctx) {
+                ctx.save();
+
+                const pos = this.body.position;
+                const angle = this.body.angle;
+                const size = this.config.size * 0.8;
+
+                // Move to tank position and rotate
+                ctx.translate(pos.x, pos.y);
+                ctx.rotate(angle);
+
+                // Tank glow
+                ctx.shadowColor = this.config.color;
+                ctx.shadowBlur = 15;
+
+                // Draw tank body (triangle)
+                ctx.beginPath();
+                ctx.moveTo(size * 0.75, 0);              // Front
+                ctx.lineTo(-size * 0.5, -size * 0.4);    // Back left
+                ctx.lineTo(-size * 0.5, size * 0.4);     // Back right
+                ctx.closePath();
+
+                ctx.fillStyle = this.config.color;
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Tank details (cylinders)
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 0.7;
+                const cylSize = size * 0.15;
+                const cylSpacing = size * 0.25;
+                ctx.fillRect(-size * 0.4, -cylSpacing, cylSize, cylSize);
+                ctx.fillRect(-size * 0.4, 0, cylSize, cylSize);
+                ctx.fillRect(-size * 0.4, cylSpacing, cylSize, cylSize);
+                ctx.globalAlpha = 1;
+
+                // Weapon indicator
+                ctx.strokeStyle = this.config.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(size * 0.6, 0);
+                ctx.lineTo(size * 0.9, 0);
+                ctx.stroke();
+
+                ctx.restore();
+
+                // Debug: Physics body outline
+                if (window.debugMode) {
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, this.config.size * 0.65, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        // ============================================
+        // Game State
+        // ============================================
+        const tank = new Tank(480, 360, {
+            size: 30,
+            thrustPower: 0.0003,
+            rotationSpeed: 3.0,
+            color: '#00ffff'
+        });
+
+        const keys = {};
+
+        // ============================================
+        // Input Handler
+        // ============================================
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.code] = false;
+        });
+
+        function handleInput() {
+            // Thrust
+            if (keys['ArrowUp']) {
+                tank.thrust = 1;
+            } else if (keys['ArrowDown']) {
+                tank.thrust = -1;
+            }
+
+            // Rotation
+            if (keys['ArrowLeft']) {
+                tank.rotation = -1;
+            } else if (keys['ArrowRight']) {
+                tank.rotation = 1;
+            }
+
+            // Debug toggle
+            if (keys['KeyD']) {
+                window.debugMode = !window.debugMode;
+                keys['KeyD'] = false;  // Prevent repeat
+            }
+        }
+
+        // ============================================
+        // Renderer
+        // ============================================
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#000011';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw starfield background
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for (let i = 0; i < 100; i++) {
+                const x = (i * 113) % canvas.width;
+                const y = (i * 197) % canvas.height;
+                ctx.fillRect(x, y, 1, 1);
+            }
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0, 100, 150, 0.2)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw walls (visual)
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+            // Draw tank
+            tank.render(ctx);
+        }
+
+        // ============================================
+        // Game Loop
+        // ============================================
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let fps = 60;
+        let lastFpsUpdate = performance.now();
+
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            // FPS calculation
+            frameCount++;
+            if (currentTime - lastFpsUpdate >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFpsUpdate = currentTime;
+            }
+
+            // Handle input
+            handleInput();
+
+            // Update tank
+            tank.update();
+
+            // Update Matter.js physics
+            Engine.update(engine, 1000 / 60);  // Fixed 60 FPS timestep
+
+            // Render
+            render();
+
+            // Update stats
+            const speed = Math.sqrt(
+                tank.body.velocity.x ** 2 +
+                tank.body.velocity.y ** 2
+            );
+            statsDiv.innerHTML = `
+                <strong>STATS</strong><br>
+                FPS: ${fps}<br>
+                Pos: (${Math.round(tank.body.position.x)}, ${Math.round(tank.body.position.y)})<br>
+                Angle: ${(tank.body.angle * 180 / Math.PI).toFixed(1)}°<br>
+                Speed: ${speed.toFixed(1)} px/s<br>
+                AngVel: ${tank.body.angularVelocity.toFixed(3)}<br>
+                <br>
+                <span style="color: #888;">Press D for debug</span>
+            `;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start game loop
+        console.log('🚀 Matter.js Prototype Starting...');
+        requestAnimationFrame(gameLoop);
+
+        // Debug mode
+        window.debugMode = false;
+    </script>
+</body>
+</html>

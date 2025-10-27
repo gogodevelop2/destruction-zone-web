@@ -143,18 +143,29 @@
                     size: config.size || 30,
                     thrustPower: config.thrustPower || 0.0003,
                     rotationSpeed: config.rotationSpeed || 3.0,
+                    density: config.density || 0.08,       // Mass per area (armor thickness)
+                    friction: config.friction || 0.8,
+                    frictionAir: config.frictionAir || 0.12,
                     color: config.color || '#00ffff'
                 };
 
-                // Create Matter.js body - THIS IS THE TANK
-                this.body = Bodies.circle(x, y, this.config.size * 0.65, {
-                    density: 0.08,
-                    friction: 0.8,
-                    frictionAir: 0.12,
+                // Define tank shape as triangle vertices (relative to center)
+                const size = this.config.size * 0.8;
+                const vertices = [
+                    { x: size * 0.75, y: 0 },              // Front point
+                    { x: -size * 0.5, y: -size * 0.4 },    // Back left
+                    { x: -size * 0.5, y: size * 0.4 }      // Back right
+                ];
+
+                // Create Matter.js body from vertices - THIS IS THE TANK
+                this.body = Bodies.fromVertices(x, y, [vertices], {
+                    density: this.config.density,
+                    friction: this.config.friction,
+                    frictionAir: this.config.frictionAir,
                     frictionStatic: 1.0,
                     restitution: 0.1,
                     label: 'tank'
-                });
+                }, true);  // true = flagInternal (auto-decompose if needed)
 
                 World.add(world, this.body);
 
@@ -211,11 +222,19 @@
                 ctx.shadowColor = this.config.color;
                 ctx.shadowBlur = 15;
 
-                // Draw tank body (triangle)
+                // Draw tank body using Matter.js vertices (for perfect match)
+                // Convert world coordinates to body-local coordinates
+                const vertices = this.body.vertices;
                 ctx.beginPath();
-                ctx.moveTo(size * 0.75, 0);              // Front
-                ctx.lineTo(-size * 0.5, -size * 0.4);    // Back left
-                ctx.lineTo(-size * 0.5, size * 0.4);     // Back right
+                const v0 = Vector.sub(vertices[0], pos);
+                const v0Rotated = Vector.rotate(v0, -angle);
+                ctx.moveTo(v0Rotated.x, v0Rotated.y);
+
+                for (let i = 1; i < vertices.length; i++) {
+                    const v = Vector.sub(vertices[i], pos);
+                    const vRotated = Vector.rotate(v, -angle);
+                    ctx.lineTo(vRotated.x, vRotated.y);
+                }
                 ctx.closePath();
 
                 ctx.fillStyle = this.config.color;
@@ -244,13 +263,24 @@
 
                 ctx.restore();
 
-                // Debug: Physics body outline
-                if (window.debugMode) {
-                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-                    ctx.lineWidth = 1;
+                // Debug: Physics body outline (actual vertices)
+                if (window.debugMode && this.body.vertices) {
+                    ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(pos.x, pos.y, this.config.size * 0.65, 0, Math.PI * 2);
+                    const vertices = this.body.vertices;
+                    ctx.moveTo(vertices[0].x, vertices[0].y);
+                    for (let i = 1; i < vertices.length; i++) {
+                        ctx.lineTo(vertices[i].x, vertices[i].y);
+                    }
+                    ctx.closePath();
                     ctx.stroke();
+
+                    // Draw center point
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
+                    ctx.fill();
                 }
             }
         }
@@ -260,8 +290,8 @@
         // ============================================
         const tank = new Tank(480, 360, {
             size: 30,
-            thrustPower: 0.0003,
-            rotationSpeed: 3.0,
+            thrustPower: 0.01,       // 0.015 → 0.01
+            rotationSpeed: 0.01,     // 0.015 → 0.01
             color: '#00ffff'
         });
 
@@ -271,10 +301,18 @@
         // Input Handler
         // ============================================
         window.addEventListener('keydown', (e) => {
+            // Prevent arrow key scrolling
+            if (e.code.startsWith('Arrow')) {
+                e.preventDefault();
+            }
             keys[e.code] = true;
         });
 
         window.addEventListener('keyup', (e) => {
+            // Prevent arrow key scrolling
+            if (e.code.startsWith('Arrow')) {
+                e.preventDefault();
+            }
             keys[e.code] = false;
         });
 
@@ -286,11 +324,15 @@
                 tank.thrust = -1;
             }
 
-            // Rotation
+            // Rotation (car-like steering)
+            // When moving forward: normal rotation
+            // When moving backward: reverse rotation
+            const steeringDirection = tank.thrust >= 0 ? 1 : -1;
+
             if (keys['ArrowLeft']) {
-                tank.rotation = -1;
+                tank.rotation = -1 * steeringDirection;
             } else if (keys['ArrowRight']) {
-                tank.rotation = 1;
+                tank.rotation = 1 * steeringDirection;
             }
 
             // Debug toggle
@@ -385,6 +427,11 @@
                 Angle: ${(tank.body.angle * 180 / Math.PI).toFixed(1)}°<br>
                 Speed: ${speed.toFixed(1)} px/s<br>
                 AngVel: ${tank.body.angularVelocity.toFixed(3)}<br>
+                <br>
+                <strong>PHYSICS</strong><br>
+                Mass: ${tank.body.mass.toFixed(2)}<br>
+                Density: ${tank.config.density.toFixed(3)}<br>
+                Friction: ${tank.config.friction.toFixed(2)}<br>
                 <br>
                 <span style="color: #888;">Press D for debug</span>
             `;

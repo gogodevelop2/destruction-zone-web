@@ -476,9 +476,13 @@
             WALL: 0x0004         // 0100
         };
 
+        // ============================================
+        // Wall Generation System
+        // ============================================
+
         // Create boundary walls
         const wallThickness = 50;
-        const walls = [
+        const boundaryWalls = [
             Bodies.rectangle(480, -25, 960, wallThickness, {
                 isStatic: true,
                 label: 'wall',
@@ -512,6 +516,116 @@
                 }
             })
         ];
+
+        // ============================================
+        // Grid-based Wall Generation (Hybrid Method)
+        // ============================================
+
+        function generateGridBasedWalls() {
+            const obstacleWalls = [];
+
+            // Playable area (exclude edges near boundary walls)
+            const margin = 50;  // Distance from boundary walls
+            const playableX = margin;
+            const playableY = margin;
+            const playableWidth = 960 - margin * 2;   // 860
+            const playableHeight = 720 - margin * 2;  // 620
+
+            // Grid configuration
+            const gridCols = 5;
+            const gridRows = 4;
+            const cellWidth = playableWidth / gridCols;   // 172
+            const cellHeight = playableHeight / gridRows; // 155
+
+            // Safe zones for tank spawning
+            const safeZones = [
+                { x: 0, y: 0, width: 133, height: 133 },           // 1: Top-left
+                { x: 827, y: 587, width: 133, height: 133 },       // 2: Bottom-right
+                { x: 827, y: 0, width: 133, height: 133 },         // 3: Top-right
+                { x: 0, y: 587, width: 133, height: 133 },         // 4: Bottom-left
+                { x: 413, y: 0, width: 133, height: 133 },         // 5: Top-middle
+                { x: 413, y: 587, width: 133, height: 133 }        // 6: Bottom-middle
+            ];
+
+            // Wall size options (adjusted to fit within cell bounds)
+            // Cell size: 172×155, with 17px margin on each side
+            // Max size: 172 - 34 = 138 (width), 155 - 34 = 121 (height)
+            const wallSizes = [
+                { width: 20, height: 70 },   // Short vertical
+                { width: 20, height: 95 },   // Medium vertical
+                { width: 20, height: 120 },  // Long vertical
+                { width: 70, height: 20 },   // Short horizontal
+                { width: 95, height: 20 },   // Medium horizontal
+                { width: 120, height: 20 }   // Long horizontal
+            ];
+
+            // Check if cell overlaps with any safe zone
+            function isCellSafe(cellX, cellY, cellW, cellH) {
+                for (const zone of safeZones) {
+                    // Check if rectangles overlap
+                    if (cellX < zone.x + zone.width &&
+                        cellX + cellW > zone.x &&
+                        cellY < zone.y + zone.height &&
+                        cellY + cellH > zone.y) {
+                        return true;  // Overlaps with safe zone
+                    }
+                }
+                return false;
+            }
+
+            // Generate walls for each grid cell
+            for (let row = 0; row < gridRows; row++) {
+                for (let col = 0; col < gridCols; col++) {
+                    const cellX = playableX + col * cellWidth;
+                    const cellY = playableY + row * cellHeight;
+
+                    // Skip if cell overlaps with safe zone
+                    if (isCellSafe(cellX, cellY, cellWidth, cellHeight)) {
+                        continue;
+                    }
+
+                    // 40% chance to place a wall in this cell
+                    if (Math.random() < 0.4) {
+                        // Choose wall size (50% vertical, 50% horizontal)
+                        const isVertical = Math.random() < 0.5;
+                        const sizeOptions = isVertical
+                            ? wallSizes.slice(0, 3)  // Vertical walls
+                            : wallSizes.slice(3);    // Horizontal walls
+                        const size = sizeOptions[Math.floor(Math.random() * sizeOptions.length)];
+
+                        // Calculate max offset to keep wall within cell bounds
+                        const maxOffsetX = (cellWidth - size.width) / 2 - 17;  // -17 for margin
+                        const maxOffsetY = (cellHeight - size.height) / 2 - 17;
+
+                        // Place wall at cell center with constrained random offset
+                        const offsetX = (Math.random() - 0.5) * 2 * maxOffsetX;
+                        const offsetY = (Math.random() - 0.5) * 2 * maxOffsetY;
+                        const x = cellX + cellWidth / 2 + offsetX;
+                        const y = cellY + cellHeight / 2 + offsetY;
+
+                        // Create wall
+                        const wall = Bodies.rectangle(x, y, size.width, size.height, {
+                            isStatic: true,
+                            label: 'obstacle_wall',
+                            collisionFilter: {
+                                category: COLLISION_CATEGORY.WALL,
+                                mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                            },
+                            friction: 0.9,
+                            restitution: 0.1
+                        });
+
+                        obstacleWalls.push(wall);
+                    }
+                }
+            }
+
+            return obstacleWalls;
+        }
+
+        // Generate walls
+        const obstacleWalls = generateGridBasedWalls();
+        const walls = [...boundaryWalls, ...obstacleWalls];
 
         World.add(world, walls);
 
@@ -554,6 +668,12 @@
                 }, true);  // true = flagInternal (auto-decompose if needed)
 
                 World.add(world, this.body);
+
+                // Set initial rotation to face center of arena
+                const centerX = 480;
+                const centerY = 360;
+                const angleToCenter = Math.atan2(centerY - y, centerX - x);
+                Body.setAngle(this.body, angleToCenter);
 
                 // Health state (no shield)
                 this.health = this.config.maxHealth;
@@ -931,7 +1051,17 @@
         // ============================================
         // Game State
         // ============================================
-        const playerTank = new Tank(480, 360, {
+        // Safe zone spawn positions (center of each safe zone)
+        const SAFE_ZONE_SPAWNS = [
+            { x: 0 + 133/2, y: 0 + 133/2 },           // 1: Top-left center
+            { x: 827 + 133/2, y: 587 + 133/2 },       // 2: Bottom-right center
+            { x: 827 + 133/2, y: 0 + 133/2 },         // 3: Top-right center
+            { x: 0 + 133/2, y: 587 + 133/2 },         // 4: Bottom-left center
+            { x: 413 + 133/2, y: 0 + 133/2 },         // 5: Top-middle center
+            { x: 413 + 133/2, y: 587 + 133/2 }        // 6: Bottom-middle center
+        ];
+
+        const playerTank = new Tank(SAFE_ZONE_SPAWNS[0].x, SAFE_ZONE_SPAWNS[0].y, {
             size: 30,
             thrustPower: 0.01,
             rotationSpeed: 0.01,
@@ -939,7 +1069,7 @@
         });
         playerTank.id = 'TANK 1';
 
-        const enemyTank = new Tank(240, 180, {
+        const enemyTank = new Tank(SAFE_ZONE_SPAWNS[1].x, SAFE_ZONE_SPAWNS[1].y, {
             size: 30,
             thrustPower: 0.01,
             rotationSpeed: 0.01,
@@ -1154,10 +1284,10 @@
                 } else if (bodyA.label === 'tank' && bodyB.label === 'projectile') {
                     handleProjectileHit(bodyB, bodyA);
                 }
-                // Check projectile → wall collision
-                else if (bodyA.label === 'projectile' && bodyB.label === 'wall') {
+                // Check projectile → wall collision (boundary walls or obstacle walls)
+                else if (bodyA.label === 'projectile' && (bodyB.label === 'wall' || bodyB.label === 'obstacle_wall')) {
                     handleProjectileWallHit(bodyA);
-                } else if (bodyA.label === 'wall' && bodyB.label === 'projectile') {
+                } else if ((bodyA.label === 'wall' || bodyA.label === 'obstacle_wall') && bodyB.label === 'projectile') {
                     handleProjectileWallHit(bodyB);
                 }
                 // TODO: Projectile → projectile collision
@@ -1217,125 +1347,139 @@
             console.log('Projectile hit wall');
         }
 
-        // Hit effects array
-        const hitEffects = [];
-        const explosions = [];
+        // ============================================
+        // PixiJS Explosion Effects (replacing Canvas explosions)
+        // ============================================
 
-        function createHitEffect(x, y) {
-            hitEffects.push({
-                x: x,
-                y: y,
-                age: 0,
-                maxAge: 0.15  // 0.5 → 0.15 (30%)
-            });
-        }
+        // Explosion ring class using PixiJS Graphics
+        class ExplosionRing extends PIXI.Graphics {
+            constructor(x, y, ringIndex) {
+                super();
 
-        function createExplosion(x, y) {
-            // Create multiple explosion rings
-            for (let i = 0; i < 3; i++) {
-                explosions.push({
-                    x: x,
-                    y: y,
-                    age: 0,
-                    maxAge: 0.6 + i * 0.1,
-                    delay: i * 0.05,
-                    size: 1 + i * 0.3
-                });
+                this.position.set(x, y);
+                this.age = 0;
+                this.maxAge = 0.6 + ringIndex * 0.1;
+                this.delay = ringIndex * 0.05;
+                this.sizeMultiplier = 1 + ringIndex * 0.3;
+                this.ringIndex = ringIndex;
             }
-        }
 
-        function updateHitEffects(deltaTime) {
-            for (let i = hitEffects.length - 1; i >= 0; i--) {
-                hitEffects[i].age += deltaTime;
-                if (hitEffects[i].age >= hitEffects[i].maxAge) {
-                    hitEffects.splice(i, 1);
-                }
-            }
-        }
+            update(deltaTime) {
+                this.age += deltaTime;
 
-        function updateExplosions(deltaTime) {
-            for (let i = explosions.length - 1; i >= 0; i--) {
-                explosions[i].age += deltaTime;
-                if (explosions[i].age >= explosions[i].maxAge) {
-                    explosions.splice(i, 1);
-                }
-            }
-        }
-
-        function renderHitEffects(ctx) {
-            for (const effect of hitEffects) {
-                const progress = effect.age / effect.maxAge;
-                const alpha = 1 - progress;
-                const radius = 3 + progress * 9;  // 10 + 30 → 3 + 9 (30%)
-
-                ctx.save();
-
-                // Outer ring
-                ctx.strokeStyle = `rgba(255, 255, 0, ${alpha * 0.8})`;
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, radius, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // Inner flash
-                ctx.fillStyle = `rgba(255, 200, 0, ${alpha * 0.5})`;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, radius * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Glow
-                ctx.shadowColor = 'rgba(255, 255, 0, 1)';
-                ctx.shadowBlur = 20;
-                ctx.fillStyle = `rgba(255, 255, 0, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(effect.x, effect.y, 5, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.restore();
-            }
-        }
-
-        function renderExplosions(ctx) {
-            for (const explosion of explosions) {
                 // Skip if still delayed
-                if (explosion.age < explosion.delay) continue;
+                if (this.age < this.delay) return true;
 
-                const adjustedAge = explosion.age - explosion.delay;
-                const progress = adjustedAge / explosion.maxAge;
+                const adjustedAge = this.age - this.delay;
+                const progress = adjustedAge / this.maxAge;
+
+                if (progress >= 1) return false;  // Dead
+
                 const alpha = 1 - progress;
-                const radius = 5 + progress * 50 * explosion.size;
+                const radius = 5 + progress * 50 * this.sizeMultiplier;
 
-                ctx.save();
+                // Clear previous drawing
+                this.clear();
 
-                // Outer ring (orange to red)
+                // Calculate colors
                 const red = 255;
                 const green = Math.floor(200 * (1 - progress));
-                ctx.strokeStyle = `rgba(${red}, ${green}, 0, ${alpha * 0.8})`;
-                ctx.lineWidth = 4;
-                ctx.beginPath();
-                ctx.arc(explosion.x, explosion.y, radius, 0, Math.PI * 2);
-                ctx.stroke();
+                const outerColor = (red << 16) | (green << 8) | 0;
 
-                // Inner ring
-                ctx.strokeStyle = `rgba(255, 255, 0, ${alpha * 0.6})`;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(explosion.x, explosion.y, radius * 0.7, 0, Math.PI * 2);
-                ctx.stroke();
+                // Outer ring (orange to red)
+                this.lineStyle(4, outerColor, alpha * 0.8);
+                this.drawCircle(0, 0, radius);
+
+                // Inner ring (yellow)
+                this.lineStyle(2, 0xffff00, alpha * 0.6);
+                this.drawCircle(0, 0, radius * 0.7);
 
                 // Flash at center (early in explosion)
                 if (progress < 0.3) {
                     const flashAlpha = (1 - progress / 0.3) * 0.8;
-                    ctx.shadowColor = 'rgba(255, 200, 0, 1)';
-                    ctx.shadowBlur = 30;
-                    ctx.fillStyle = `rgba(255, 200, 0, ${flashAlpha})`;
-                    ctx.beginPath();
-                    ctx.arc(explosion.x, explosion.y, 15, 0, Math.PI * 2);
-                    ctx.fill();
+                    this.beginFill(0xffc800, flashAlpha);
+                    this.drawCircle(0, 0, 15);
+                    this.endFill();
                 }
 
-                ctx.restore();
+                // Apply glow filter
+                if (!this.filters) {
+                    const glowFilter = new PIXI.filters.BlurFilter();
+                    glowFilter.blur = 8;
+                    glowFilter.quality = 2;
+                    this.filters = [glowFilter];
+                }
+
+                return true;  // Still alive
             }
+        }
+
+        // Create tank explosion (3 expanding rings)
+        function createExplosion(x, y) {
+            if (!particleContainer) return;
+
+            for (let i = 0; i < 3; i++) {
+                const ring = new ExplosionRing(x, y, i);
+                particleContainer.addChild(ring);
+                activeParticles.push(ring);
+            }
+        }
+
+        // Hit effect ring (small, fast flash for projectile hits)
+        class HitEffectRing extends PIXI.Graphics {
+            constructor(x, y) {
+                super();
+
+                this.position.set(x, y);
+                this.age = 0;
+                this.maxAge = 0.15;
+            }
+
+            update(deltaTime) {
+                this.age += deltaTime;
+                const progress = this.age / this.maxAge;
+
+                if (progress >= 1) return false;  // Dead
+
+                const alpha = 1 - progress;
+                const radius = 3 + progress * 9;
+
+                // Clear previous drawing
+                this.clear();
+
+                // Outer ring (yellow)
+                this.lineStyle(3, 0xffff00, alpha * 0.8);
+                this.drawCircle(0, 0, radius);
+
+                // Inner flash
+                this.beginFill(0xffc800, alpha * 0.5);
+                this.drawCircle(0, 0, radius * 0.5);
+                this.endFill();
+
+                // Center glow
+                this.beginFill(0xffff00, alpha);
+                this.drawCircle(0, 0, 5);
+                this.endFill();
+
+                // Apply glow filter (similar to Canvas shadowBlur = 20)
+                if (!this.filters) {
+                    const glowFilter = new PIXI.filters.BlurFilter();
+                    glowFilter.blur = 8;
+                    glowFilter.quality = 2;
+                    this.filters = [glowFilter];
+                }
+
+                return true;  // Still alive
+            }
+        }
+
+        // Create hit effect (for projectile impacts)
+        function createHitEffect(x, y) {
+            if (!particleContainer) return;
+
+            const hitEffect = new HitEffectRing(x, y);
+            particleContainer.addChild(hitEffect);
+            activeParticles.push(hitEffect);
         }
 
         // ============================================
@@ -1393,20 +1537,28 @@
         // Renderer
         // ============================================
         function render() {
-            // Clear canvas
-            ctx.fillStyle = '#000011';
+            // Clear canvas - Ground base color
+            ctx.fillStyle = '#2a2a1a';  // Dark brownish ground
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw starfield background
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-            for (let i = 0; i < 100; i++) {
-                const x = (i * 113) % canvas.width;
-                const y = (i * 197) % canvas.height;
-                ctx.fillRect(x, y, 1, 1);
+            // Draw ground texture pattern (randomized but consistent)
+            for (let i = 0; i < 300; i++) {
+                // Use seed-based randomization for consistency
+                const seed1 = (i * 73 + 17) % 997;
+                const seed2 = (i * 131 + 23) % 991;
+                const seed3 = (i * 197 + 31) % 983;
+
+                const x = (seed1 * 73) % canvas.width;
+                const y = (seed2 * 131) % canvas.height;
+                const size = 1 + (seed3 % 4);
+                const brightness = 60 + (seed3 % 40);
+
+                ctx.fillStyle = `rgba(${brightness}, ${brightness}, ${brightness * 0.6}, 0.4)`;
+                ctx.fillRect(x, y, size, size);
             }
 
-            // Draw grid
-            ctx.strokeStyle = 'rgba(0, 100, 150, 0.2)';
+            // Draw subtle grid (ground tiles)
+            ctx.strokeStyle = 'rgba(60, 60, 40, 0.15)';
             ctx.lineWidth = 1;
             for (let x = 0; x < canvas.width; x += 50) {
                 ctx.beginPath();
@@ -1421,10 +1573,86 @@
                 ctx.stroke();
             }
 
-            // Draw walls (visual)
+            // DEBUG: Grid and safe zone visualization (disabled)
+            // Uncomment to enable debug visualization
+            /*
+            const margin = 50;
+            const playableX = margin;
+            const playableY = margin;
+            const playableWidth = 960 - margin * 2;
+            const playableHeight = 720 - margin * 2;
+            const gridCols = 5;
+            const gridRows = 4;
+            const cellWidth = playableWidth / gridCols;
+            const cellHeight = playableHeight / gridRows;
+
+            // Draw grid lines
+            ctx.strokeStyle = 'rgba(255, 0, 255, 0.3)';
+            ctx.lineWidth = 1;
+            for (let col = 0; col <= gridCols; col++) {
+                const x = playableX + col * cellWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, playableY);
+                ctx.lineTo(x, playableY + playableHeight);
+                ctx.stroke();
+            }
+            for (let row = 0; row <= gridRows; row++) {
+                const y = playableY + row * cellHeight;
+                ctx.beginPath();
+                ctx.moveTo(playableX, y);
+                ctx.lineTo(playableX + playableWidth, y);
+                ctx.stroke();
+            }
+
+            // Draw safe zones
+            const safeZones = [
+                { x: 0, y: 0, width: 133, height: 133, label: '1' },
+                { x: 827, y: 587, width: 133, height: 133, label: '2' },
+                { x: 827, y: 0, width: 133, height: 133, label: '3' },
+                { x: 0, y: 587, width: 133, height: 133, label: '4' },
+                { x: 413, y: 0, width: 133, height: 133, label: '5' },
+                { x: 413, y: 587, width: 133, height: 133, label: '6' }
+            ];
+            safeZones.forEach(zone => {
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.7)';
+                ctx.font = 'bold 24px monospace';
+                ctx.fillText(zone.label, zone.x + 10, zone.y + 30);
+            });
+            */
+
+            // Draw walls
+            // 1. Boundary walls (red outline)
             ctx.strokeStyle = '#ff4444';
             ctx.lineWidth = 3;
             ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+            // 2. Obstacle walls (white outline, dark fill)
+            obstacleWalls.forEach(wall => {
+                const pos = wall.position;
+                const vertices = wall.vertices;
+
+                ctx.save();
+
+                // Fill
+                ctx.fillStyle = '#3a3a3a';
+                ctx.beginPath();
+                ctx.moveTo(vertices[0].x, vertices[0].y);
+                for (let i = 1; i < vertices.length; i++) {
+                    ctx.lineTo(vertices[i].x, vertices[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+
+                // Outline (white like original game)
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.restore();
+            });
 
             // Draw tanks
             playerTank.render(ctx);
@@ -1437,11 +1665,7 @@
                 }
             }
 
-            // Draw hit effects
-            renderHitEffects(ctx);
-
-            // Draw explosions
-            renderExplosions(ctx);
+            // Hit effects and explosions now rendered by PixiJS (in particleContainer)
         }
 
         // ============================================
@@ -1482,13 +1706,7 @@
                 }
             }
 
-            // Update hit effects
-            updateHitEffects(deltaTime);
-
-            // Update explosions
-            updateExplosions(deltaTime);
-
-            // Update particles (PixiJS)
+            // Update particles (PixiJS) - includes explosions and hit effects
             updateParticles(deltaTime);
 
             // Update Matter.js physics

@@ -1660,8 +1660,499 @@ for (let i = array.length - 1; i >= 0; i--) {
 
 ---
 
+## 2025년 1월 28일 - 지형 시스템 및 폭발 효과 통합
+
+### 🎯 목표
+1. 배경을 우주 테마에서 지면 테마로 변경
+2. 그리드 기반 벽 생성 시스템 구현
+3. 폭발 효과를 Canvas에서 PixiJS로 통합
+
+---
+
+### 📋 진행 사항
+
+#### 1. 배경 테마 변경: 우주 → 지면
+
+**이전**: 검은 배경 + 흰색 별 패턴
+```javascript
+ctx.fillStyle = '#000011';  // 우주 배경
+// 흰색 별 패턴
+```
+
+**변경**: 갈색 지면 + 자연스러운 노이즈
+```javascript
+ctx.fillStyle = '#2a2a1a';  // 어두운 갈색 지면
+
+// Seed 기반 랜덤 노이즈 (일관된 패턴)
+for (let i = 0; i < 300; i++) {
+    const seed1 = (i * 73 + 17) % 997;
+    const seed2 = (i * 131 + 23) % 991;
+    const seed3 = (i * 197 + 31) % 983;
+
+    const x = (seed1 * 73) % canvas.width;
+    const y = (seed2 * 131) % canvas.height;
+    const size = 1 + (seed3 % 4);
+    const brightness = 60 + (seed3 % 40);
+
+    ctx.fillStyle = `rgba(${brightness}, ${brightness}, ${brightness * 0.6}, 0.4)`;
+    ctx.fillRect(x, y, size, size);
+}
+```
+
+**개선 사항:**
+- 소수(Prime number) 기반 시드로 자연스러운 랜덤 분포
+- 매 프레임 동일한 패턴 (성능 효율적)
+- 밝기와 크기에 변화를 주어 유기적인 느낌
+
+---
+
+#### 2. 그리드 기반 벽 생성 시스템
+
+**아키텍처 결정**: 하이브리드 접근법
+- 순수 랜덤: 겹침 문제, 불균등 분포
+- 순수 그리드: 너무 규칙적
+- ✅ **하이브리드**: 그리드로 구역 나누고 각 셀 내부에서 랜덤 배치
+
+##### 2.1 그리드 설정
+```javascript
+const gridCols = 5;
+const gridRows = 4;
+const cellWidth = 172px;   // (860 / 5)
+const cellHeight = 155px;  // (620 / 4)
+```
+
+**플레이 가능 영역:**
+- 외부 벽에서 50px 마진
+- 실제 영역: 860×620 (원본 960×720에서 양쪽 50px씩 제외)
+
+##### 2.2 안전 구역 시스템 (6개)
+
+탱크 스폰 위치를 보호하는 구역 (벽 생성 금지)
+
+```javascript
+const safeZones = [
+    { x: 0, y: 0, width: 133, height: 133 },           // 1: Top-left
+    { x: 827, y: 587, width: 133, height: 133 },       // 2: Bottom-right
+    { x: 827, y: 0, width: 133, height: 133 },         // 3: Top-right
+    { x: 0, y: 587, width: 133, height: 133 },         // 4: Bottom-left
+    { x: 413, y: 0, width: 133, height: 133 },         // 5: Top-middle
+    { x: 413, y: 587, width: 133, height: 133 }        // 6: Bottom-middle
+];
+
+const SAFE_ZONE_SPAWNS = [
+    { x: 66.5, y: 66.5 },      // 1: 좌상단 중심
+    { x: 893.5, y: 653.5 },    // 2: 우하단 중심
+    { x: 893.5, y: 66.5 },     // 3: 우상단 중심
+    { x: 66.5, y: 653.5 },     // 4: 좌하단 중심
+    { x: 479.5, y: 66.5 },     // 5: 상단 중앙
+    { x: 479.5, y: 653.5 }     // 6: 하단 중앙
+];
+```
+
+**스폰 순서 최적화:**
+- 1번과 2번이 대각선 반대편 (최대 거리)
+- 3번과 4번도 대각선 반대편
+- 5번과 6번은 상하 중앙 (균형)
+
+##### 2.3 벽 생성 로직
+
+```javascript
+function generateGridBasedWalls() {
+    const obstacleWalls = [];
+
+    // 각 그리드 셀 순회
+    for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+            const cellX = playableX + col * cellWidth;
+            const cellY = playableY + row * cellHeight;
+
+            // 안전 구역과 겹치면 건너뛰기
+            if (isCellSafe(cellX, cellY, cellWidth, cellHeight)) {
+                continue;
+            }
+
+            // 40% 확률로 벽 배치
+            if (Math.random() < 0.4) {
+                // 50% 확률로 세로/가로 결정
+                const isVertical = Math.random() < 0.5;
+
+                // 벽 크기 랜덤 선택
+                const size = selectRandomSize(isVertical);
+
+                // 셀 내부에서 랜덤 오프셋 (마진 17px 유지)
+                const maxOffsetX = (cellWidth - size.width) / 2 - 17;
+                const maxOffsetY = (cellHeight - size.height) / 2 - 17;
+
+                const offsetX = (Math.random() - 0.5) * 2 * maxOffsetX;
+                const offsetY = (Math.random() - 0.5) * 2 * maxOffsetY;
+
+                const x = cellX + cellWidth / 2 + offsetX;
+                const y = cellY + cellHeight / 2 + offsetY;
+
+                // Matter.js 정적 바디 생성
+                const wall = Bodies.rectangle(x, y, size.width, size.height, {
+                    isStatic: true,
+                    label: 'obstacle_wall',
+                    collisionFilter: {
+                        category: COLLISION_CATEGORY.WALL,
+                        mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                    },
+                    friction: 0.9,
+                    restitution: 0.1
+                });
+
+                obstacleWalls.push(wall);
+            }
+        }
+    }
+
+    return obstacleWalls;
+}
+```
+
+##### 2.4 벽 크기 옵션
+
+셀 크기: 172×155 (마진 17px 적용 시 최대: 138×121)
+
+```javascript
+const wallSizes = [
+    // 세로 벽
+    { width: 20, height: 70 },   // 짧음
+    { width: 20, height: 95 },   // 중간
+    { width: 20, height: 120 },  // 김
+
+    // 가로 벽
+    { width: 70, height: 20 },   // 짧음
+    { width: 95, height: 20 },   // 중간
+    { width: 120, height: 20 }   // 김
+];
+```
+
+**마진 조정 히스토리:**
+- 15px → 16px → 17px (최종)
+- 벽이 셀 경계를 넘지 않도록 점진적 조정
+
+##### 2.5 탱크 초기 방향
+
+모든 탱크가 생성 시 중앙을 향하도록 설정
+
+```javascript
+// Tank 생성자 내부
+const centerX = 480;
+const centerY = 360;
+const angleToCenter = Math.atan2(centerY - y, centerX - x);
+Body.setAngle(this.body, angleToCenter);
+```
+
+---
+
+#### 3. 폭발 효과 PixiJS 통합
+
+**문제 인식**:
+- Canvas 2D (동심원) + PixiJS (파티클) 이중 렌더링 파이프라인
+- 컨텍스트 스위칭 비용
+- 비효율적인 draw call
+
+**해결책**: 모든 시각 효과를 PixiJS로 통합
+
+##### 3.1 Canvas 기반 시스템 제거
+
+**삭제된 코드:**
+- `explosions[]` 배열 및 관련 함수
+- `hitEffects[]` 배열 및 관련 함수
+- `renderExplosions(ctx)`
+- `renderHitEffects(ctx)`
+- `updateExplosions(deltaTime)`
+- `updateHitEffects(deltaTime)`
+
+##### 3.2 PixiJS Graphics 기반 재구현
+
+**ExplosionRing 클래스** (탱크 폭발용)
+```javascript
+class ExplosionRing extends PIXI.Graphics {
+    constructor(x, y, ringIndex) {
+        super();
+        this.position.set(x, y);
+        this.age = 0;
+        this.maxAge = 0.6 + ringIndex * 0.1;  // 3개의 링이 시차를 두고 확장
+        this.delay = ringIndex * 0.05;
+        this.sizeMultiplier = 1 + ringIndex * 0.3;
+    }
+
+    update(deltaTime) {
+        this.age += deltaTime;
+
+        if (this.age < this.delay) return true;  // 아직 지연 중
+
+        const adjustedAge = this.age - this.delay;
+        const progress = adjustedAge / this.maxAge;
+
+        if (progress >= 1) return false;  // 수명 종료
+
+        const alpha = 1 - progress;
+        const radius = 5 + progress * 50 * this.sizeMultiplier;
+
+        this.clear();
+
+        // 색상 변화: 오렌지 → 빨강
+        const red = 255;
+        const green = Math.floor(200 * (1 - progress));
+        const outerColor = (red << 16) | (green << 8) | 0;
+
+        // Outer ring
+        this.lineStyle(4, outerColor, alpha * 0.8);
+        this.drawCircle(0, 0, radius);
+
+        // Inner ring (yellow)
+        this.lineStyle(2, 0xffff00, alpha * 0.6);
+        this.drawCircle(0, 0, radius * 0.7);
+
+        // Center flash (초반 30%만)
+        if (progress < 0.3) {
+            const flashAlpha = (1 - progress / 0.3) * 0.8;
+            this.beginFill(0xffc800, flashAlpha);
+            this.drawCircle(0, 0, 15);
+            this.endFill();
+        }
+
+        // Glow 효과 적용 (한 번만)
+        if (!this.filters) {
+            const glowFilter = new PIXI.filters.BlurFilter();
+            glowFilter.blur = 8;
+            glowFilter.quality = 2;
+            this.filters = [glowFilter];
+        }
+
+        return true;  // 계속 살아있음
+    }
+}
+```
+
+**HitEffectRing 클래스** (발사체 충돌용)
+```javascript
+class HitEffectRing extends PIXI.Graphics {
+    constructor(x, y) {
+        super();
+        this.position.set(x, y);
+        this.age = 0;
+        this.maxAge = 0.15;  // 빠른 플래시
+    }
+
+    update(deltaTime) {
+        this.age += deltaTime;
+        const progress = this.age / this.maxAge;
+
+        if (progress >= 1) return false;
+
+        const alpha = 1 - progress;
+        const radius = 3 + progress * 9;
+
+        this.clear();
+
+        // Outer ring (yellow)
+        this.lineStyle(3, 0xffff00, alpha * 0.8);
+        this.drawCircle(0, 0, radius);
+
+        // Inner flash
+        this.beginFill(0xffc800, alpha * 0.5);
+        this.drawCircle(0, 0, radius * 0.5);
+        this.endFill();
+
+        // Center glow
+        this.beginFill(0xffff00, alpha);
+        this.drawCircle(0, 0, 5);
+        this.endFill();
+
+        // Glow 효과
+        if (!this.filters) {
+            const glowFilter = new PIXI.filters.BlurFilter();
+            glowFilter.blur = 8;
+            glowFilter.quality = 2;
+            this.filters = [glowFilter];
+        }
+
+        return true;
+    }
+}
+```
+
+##### 3.3 Glow 효과 구현 시행착오
+
+**시도 1: Multiple Graphics 레이어**
+- 여러 개의 반투명 원을 겹쳐서 glow 흉내
+- 결과: **너무 지저분하고 부자연스러움** ❌
+
+```javascript
+// 실패한 접근
+for (let i = 3; i > 0; i--) {
+    this.beginFill(outerColor, alpha * 0.15 * i / 3);
+    this.drawCircle(0, 0, radius + i * 4);
+    this.endFill();
+}
+```
+
+**시도 2: BlurFilter 사용** ✅
+- PixiJS 내장 BlurFilter로 자연스러운 glow
+- 결과: **훨씬 깔끔하고 Canvas shadowBlur와 유사**
+
+```javascript
+const glowFilter = new PIXI.filters.BlurFilter();
+glowFilter.blur = 8;      // 블러 반경 (0-20 권장)
+glowFilter.quality = 2;   // 샘플링 품질 (1-5 권장)
+this.filters = [glowFilter];
+```
+
+**BlurFilter 파라미터 설명:**
+- `blur`: 블러가 얼마나 멀리 퍼지는지 (강도)
+  - 3-5: 약한 glow
+  - 8-10: 중간 glow (현재 설정)
+  - 15-20: 강한 glow
+- `quality`: 블러의 부드러움 (샘플링 횟수)
+  - 1: 빠르지만 각진 블러
+  - 2-3: 적당한 품질 (현재 설정)
+  - 5+: 매우 부드럽지만 느림
+
+##### 3.4 통합된 파티클 시스템
+
+모든 효과가 단일 시스템에서 관리됨:
+
+```javascript
+// 기존 Particle 클래스 (파편)
+// 새로운 ExplosionRing 클래스 (동심원)
+// 새로운 HitEffectRing 클래스 (작은 충돌)
+
+function updateParticles(deltaTime) {
+    for (let i = activeParticles.length - 1; i >= 0; i--) {
+        const particle = activeParticles[i];
+        const alive = particle.update(deltaTime);
+
+        if (!alive) {
+            particleContainer.removeChild(particle);
+            particle.destroy();
+            activeParticles.splice(i, 1);
+        }
+    }
+}
+```
+
+**장점:**
+- 단일 렌더링 파이프라인 (PixiJS WebGL)
+- CPU → GPU 이동으로 성능 향상
+- 코드 일관성 증가
+- 유지보수 용이
+
+---
+
+### 🎨 시각적 개선
+
+#### Before (Canvas 혼합)
+```
+배경 (Canvas)
+→ 탱크/벽 (Canvas)
+→ 파티클 (PixiJS)
+→ 동심원 (Canvas)  ← 컨텍스트 스위칭!
+```
+
+#### After (PixiJS 통합)
+```
+배경 (Canvas - 정적)
+→ 탱크/벽/발사체 (Canvas - 게임 오브젝트)
+→ 모든 효과 (PixiJS - WebGL) ✨
+```
+
+---
+
+### 📊 성능 개선
+
+**렌더링 파이프라인:**
+- Canvas 2D (CPU 기반) 사용 감소
+- PixiJS WebGL (GPU 기반) 사용 증가
+- 컨텍스트 스위칭 제거
+
+**예상 효과:**
+- 폭발이 10개 이상 동시 발생 시 성능 개선
+- 60 FPS 유지 능력 향상
+
+---
+
+### 🔧 기술적 학습
+
+#### PixiJS BlurFilter
+- WebGL 기반 가우시안 블러
+- Canvas의 `shadowBlur`와 유사한 효과
+- GPU 가속으로 효율적
+
+#### Seed 기반 랜덤 패턴
+```javascript
+const seed1 = (i * 73 + 17) % 997;  // 소수를 사용한 유사 난수
+```
+- 매 프레임 동일한 패턴 (일관성)
+- 진짜 랜덤보다 성능 좋음
+- 자연스러운 분포
+
+#### Rectangle Overlap 감지
+```javascript
+function isCellSafe(cellX, cellY, cellW, cellH) {
+    return cellX < zone.x + zone.width &&
+           cellX + cellW > zone.x &&
+           cellY < zone.y + zone.height &&
+           cellY + cellH > zone.y;
+}
+```
+- AABB (Axis-Aligned Bounding Box) 충돌 감지
+- 게임 개발 기본 알고리즘
+
+---
+
+### ✅ 완료된 작업
+
+1. ✅ 배경 테마 변경 (우주 → 지면)
+2. ✅ 그리드 기반 벽 생성 시스템
+3. ✅ 안전 구역 시스템 (6개)
+4. ✅ 탱크 초기 방향 (중앙 향하기)
+5. ✅ 폭발 효과 PixiJS 통합
+6. ✅ BlurFilter 적용 (glow 효과)
+7. ✅ 단일 파티클 시스템으로 통합
+
+---
+
+### 🐛 해결된 문제
+
+**문제 1**: 지면 노이즈가 안 보임
+- **원인**: 너무 어두운 색상
+- **해결**: 밝기 증가 (50 → 60~100)
+
+**문제 2**: 노이즈가 너무 규칙적
+- **원인**: 단순 modulo 패턴
+- **해결**: 소수 기반 시드 시스템
+
+**문제 3**: 벽이 셀 경계를 넘어감
+- **원인**: 고정된 오프셋 (±50px)
+- **해결**: 동적 maxOffset 계산
+
+**문제 4**: 안전 구역 위치 오류
+- **원인**: 3, 4번 좌우 중간 대신 상하 중간
+- **해결**: 좌표 수정
+
+**문제 5**: Multiple Graphics 레이어 glow가 별로
+- **원인**: 너무 많은 레이어, 부자연스러움
+- **해결**: BlurFilter 사용
+
+---
+
+### 🚀 다음 단계
+
+**Phase 3B 진행 예정:**
+- [ ] 추가 무기 구현 (10+ 종류)
+- [ ] 라운드 관리 시스템
+- [ ] 상점 시스템
+- [ ] 플레이어 등록 화면
+
+---
+
 ## 📝 참고 자료
 
 - [PixiJS v7 Documentation](https://pixijs.download/release/docs/index.html)
 - [PIXI.Graphics](https://pixijs.download/release/docs/PIXI.Graphics.html)
 - [PIXI.Application Options](https://pixijs.download/release/docs/PIXI.Application.html)
+- [PIXI.filters.BlurFilter](https://pixijs.download/release/docs/PIXI.filters.BlurFilter.html)

@@ -1193,3 +1193,475 @@ element.style.height = `${percentage}%`;
 - ARCHITECTURE.md - 업데이트된 Phase 구조
 - [Matter.js Collision Filtering](https://brm.io/matter-js/docs/classes/Body.html#property_collisionFilter)
 - dzone-v1.3/DZONE.DOC - 원본 게임 매뉴얼
+
+---
+---
+
+## 2025년 1월 28일 - PixiJS Particle Effects 추가
+
+### 🎯 목표
+향후 특수 효과 확장을 위한 PixiJS 파티클 시스템 구축
+
+---
+
+## 📋 진행 사항
+
+### 1. PixiJS 통합
+
+#### 기술 선택
+- **PixiJS v7.3.2**: WebGL 기반 2D 렌더링 라이브러리
+- **외부 라이브러리 없음**: pixi-particles 대신 네이티브 구현
+- **하이브리드 렌더링**: Canvas 2D (게임 오브젝트) + PixiJS (파티클)
+
+#### 아키텍처
+```
+┌──────────────────────────────┐
+│   PixiJS Canvas (Layer 2)    │ ← 파티클 전용
+│   (backgroundAlpha: 0)       │
+├──────────────────────────────┤
+│   Canvas 2D (Layer 1)        │ ← 게임 오브젝트
+│   (Matter.js 렌더링)         │
+└──────────────────────────────┘
+```
+
+**핵심**: CSS absolute positioning으로 투명 오버레이
+
+---
+
+### 2. PixiJS 초기화
+
+#### HTML 구조 변경
+```html
+<!-- 기존 -->
+<canvas id="gameCanvas"></canvas>
+
+<!-- 변경 후 -->
+<div id="canvasWrapper">
+  <canvas id="gameCanvas"></canvas>
+  <div id="pixiContainer"></div>
+</div>
+```
+
+#### CSS 오버레이 설정
+```css
+#canvasWrapper {
+  position: relative;
+}
+
+#pixiContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;  /* 클릭 이벤트 통과 */
+}
+```
+
+#### 초기화 코드
+```javascript
+let pixiApp;
+let particleContainer;
+const activeParticles = [];
+
+function initPixiJS() {
+  pixiApp = new PIXI.Application({
+    width: 960,
+    height: 720,
+    backgroundAlpha: 0,  // ✅ 완전 투명 (transparent: true 아님!)
+    antialias: true
+  });
+
+  document.getElementById('pixiContainer')
+    .appendChild(pixiApp.view);
+
+  particleContainer = new PIXI.Container();
+  pixiApp.stage.addChild(particleContainer);
+}
+```
+
+**중요**: `backgroundAlpha: 0`이 핵심! `transparent: true`는 opaque black으로 렌더링됨.
+
+---
+
+### 3. Particle 클래스 (Native 구현)
+
+#### PIXI.Graphics 확장
+```javascript
+class Particle extends PIXI.Graphics {
+  constructor(x, y, vx, vy, config) {
+    super();
+
+    // 원형 파티클 그리기
+    this.beginFill(config.startColor || 0xffff00);
+    this.drawCircle(0, 0, config.radius || 3);
+    this.endFill();
+
+    this.position.set(x, y);
+    this.vx = vx;
+    this.vy = vy;
+
+    this.maxLife = config.lifetime || 1.0;
+    this.life = this.maxLife;
+    this.startColor = config.startColor;
+    this.endColor = config.endColor;
+    this.damping = config.damping || 0.95;
+  }
+
+  update(deltaTime) {
+    // 위치 업데이트
+    this.x += this.vx * deltaTime;
+    this.y += this.vy * deltaTime;
+
+    // 속도 감속
+    this.vx *= this.damping;
+    this.vy *= this.damping;
+
+    // 생명 감소
+    this.life -= deltaTime;
+
+    // 투명도
+    this.alpha = this.life / this.maxLife;
+
+    // 색상 변화 (50% 기준)
+    const progress = 1 - (this.life / this.maxLife);
+    this.tint = progress < 0.5 ? this.startColor : this.endColor;
+
+    return this.life > 0;  // 생존 여부
+  }
+}
+```
+
+**특징**:
+- `PIXI.Graphics`로 원형 파티클 생성
+- 간단한 물리 시뮬레이션 (velocity + damping)
+- 색상 전환 (`tint` 속성 활용)
+- 알파 페이드 아웃
+- 자체 생명 주기 관리
+
+---
+
+### 4. 파티클 생성 함수
+
+#### 탱크 폭발 파티클
+```javascript
+function createTankExplosionParticles(x, y) {
+  if (!particleContainer) return;
+
+  const count = 80;
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 100 + Math.random() * 150;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+
+    const particle = new Particle(x, y, vx, vy, {
+      lifetime: 0.5 + Math.random() * 0.7,
+      startColor: 0xffff00,  // 노란색
+      endColor: 0xff0000,    // 빨간색
+      damping: 0.95,
+      radius: 3  // 큰 파티클
+    });
+
+    particleContainer.addChild(particle);
+    activeParticles.push(particle);
+  }
+}
+```
+
+**효과**:
+- 80개 파티클
+- 방사형으로 사방 퍼짐
+- 노란색 → 빨간색 전환
+- 수명: 0.5~1.2초
+
+#### 미사일 충돌 파티클
+```javascript
+function createProjectileHitParticles(x, y) {
+  if (!particleContainer) return;
+
+  const count = 5;  // 작은 스파크
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 50 + Math.random() * 100;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed;
+
+    const particle = new Particle(x, y, vx, vy, {
+      lifetime: 0.2 + Math.random() * 0.3,
+      startColor: 0xffffff,  // 흰색
+      endColor: 0xff8800,    // 주황색
+      damping: 0.92,
+      radius: 1  // 작은 파티클 (1/3 크기)
+    });
+
+    particleContainer.addChild(particle);
+    activeParticles.push(particle);
+  }
+}
+```
+
+**효과**:
+- 5개 파티클 (탱크 폭발의 1/16)
+- 흰색 → 주황색 스파크
+- 수명: 0.2~0.5초
+- radius 1 (탱크 폭발의 1/3)
+
+---
+
+### 5. 파티클 라이프사이클 관리
+
+#### 업데이트 & 정리
+```javascript
+function updateParticles(deltaTime) {
+  for (let i = activeParticles.length - 1; i >= 0; i--) {
+    const particle = activeParticles[i];
+    const alive = particle.update(deltaTime);
+
+    if (!alive) {
+      particleContainer.removeChild(particle);
+      particle.destroy();  // PixiJS 메모리 해제
+      activeParticles.splice(i, 1);
+    }
+  }
+}
+```
+
+**자동 정리**:
+- 역순 순회 (splice 안전)
+- 죽은 파티클 컨테이너에서 제거
+- `destroy()` 호출로 메모리 누수 방지
+- 배열에서도 제거
+
+---
+
+### 6. 게임 이벤트 연결
+
+#### Tank.destroy() 연결
+```javascript
+destroy() {
+  if (!this.alive) return;
+
+  this.alive = false;
+
+  // Canvas 폭발 링 (기존)
+  createExplosion(this.body.position.x, this.body.position.y);
+
+  // PixiJS 파티클 (신규)
+  createTankExplosionParticles(this.body.position.x, this.body.position.y);
+
+  World.remove(world, this.body);
+}
+```
+
+#### handleProjectileHit() 연결
+```javascript
+function handleProjectileHit(projectileBody, tankBody) {
+  // ... 데미지 처리 ...
+
+  // Canvas 이펙트 (기존)
+  createHitEffect(projectileBody.position.x, projectileBody.position.y);
+
+  // PixiJS 파티클 (신규)
+  createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+
+  projectile.destroy();
+}
+```
+
+#### handleProjectileWallHit() 연결
+```javascript
+function handleProjectileWallHit(projectileBody) {
+  // ... 발사체 찾기 ...
+
+  createHitEffect(projectileBody.position.x, projectileBody.position.y);
+  createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+
+  projectile.destroy();
+}
+```
+
+---
+
+### 7. 게임 루프 통합
+
+#### 초기화
+```javascript
+console.log('🚀 Matter.js Prototype Starting...');
+
+// PixiJS 초기화 (게임 루프 전)
+initPixiJS();
+
+requestAnimationFrame(gameLoop);
+```
+
+#### 업데이트 루프
+```javascript
+function gameLoop(currentTime) {
+  // ... deltaTime 계산 ...
+
+  // 파티클 업데이트 (매 프레임)
+  updateParticles(deltaTime);
+
+  // 물리 업데이트
+  Engine.update(engine, 1000 / 60);
+
+  // 렌더링
+  render();
+  updateUI();
+
+  requestAnimationFrame(gameLoop);
+}
+```
+
+---
+
+## 🔧 문제 해결 과정
+
+### 문제 1: 탱크가 안 보임
+**증상**: PixiJS 추가 후 탱크가 화면에서 사라짐
+
+**원인**: `transparent: true` 옵션이 opaque black으로 렌더링되어 Canvas 2D 레이어를 가림
+
+**해결**:
+```javascript
+// ❌ 작동 안함
+new PIXI.Application({ transparent: true })
+
+// ✅ 작동함
+new PIXI.Application({ backgroundAlpha: 0 })
+```
+
+**교훈**: PixiJS v7에서는 `backgroundAlpha: 0`가 올바른 방법
+
+### 문제 2: pixi-particles 라이브러리 로딩 실패
+**증상**: CDN에서 pixi-particles 로드 실패 (404, MIME type 에러)
+
+**원인**: 외부 라이브러리 호환성 문제
+
+**해결**: 외부 라이브러리 포기, PixiJS 네이티브 기능만 사용
+- `PIXI.Graphics`로 파티클 그리기
+- 직접 물리 시뮬레이션 구현
+- 더 가볍고 안정적
+
+**교훈**: 의존성 최소화, 네이티브 기능 우선
+
+### 문제 3: 파티클 크기 혼동
+**증상**: 미사일 충돌 파티클이 탱크 폭발 파티클만큼 큼
+
+**원인**: 개수만 줄이고(15→5) 크기(radius)는 동일하게 유지
+
+**해결**: `radius` 파라미터 추가
+```javascript
+// 탱크 폭발
+radius: 3  // 큰 파티클
+
+// 미사일 충돌
+radius: 1  // 작은 스파크 (1/3)
+```
+
+**교훈**: 사용자 피드백의 정확한 의도 파악 중요
+
+### 문제 4: 코드 지저분해짐
+**증상**: pixi-particles 제거 중 코드가 복잡하게 얽힘
+
+**해결**: `git restore prototype.html`로 깔끔하게 되돌리고 처음부터 재작업
+
+**교훈**: 복잡한 리팩토링보다 클린 스타트가 나을 때가 있음
+
+---
+
+## 📊 통계
+
+**작업 시간**: 약 1시간
+- PixiJS 통합 시도 1차 (실패): 20분
+- 디버깅 및 재시작: 15분
+- 클린 구현: 25분
+
+**코드 라인 수**:
+- prototype.html: 1,350줄 → 1,523줄 (+173줄)
+- 추가된 기능:
+  - PixiJS 초기화: 30줄
+  - Particle 클래스: 50줄
+  - 파티클 생성 함수: 50줄
+  - 라이프사이클 관리: 20줄
+  - 이벤트 연결: 23줄
+
+**커밋**:
+- feat: Add PixiJS particle effects system
+
+---
+
+## 🎯 결론
+
+**PixiJS 파티클 시스템 완성!** ✅
+
+**구현된 기능**:
+- ✅ PixiJS 투명 오버레이 (backgroundAlpha: 0)
+- ✅ 네이티브 파티클 클래스 (PIXI.Graphics)
+- ✅ 탱크 폭발 효과 (80개, radius 3)
+- ✅ 미사일 충돌 효과 (5개, radius 1)
+- ✅ 자동 라이프사이클 관리
+- ✅ 하이브리드 렌더링 안정화
+
+**핵심 설계 결정**:
+1. **외부 라이브러리 제거**: pixi-particles 대신 네이티브 구현
+2. **하이브리드 렌더링**: Canvas 2D + PixiJS 오버레이
+3. **간단한 물리**: velocity + damping으로 충분
+4. **파티클 차별화**: 크기(radius)로 탱크/미사일 구분
+
+**향후 확장 가능**:
+- 추가 파티클 효과 (추진 불꽃, 실드 임팩트 등)
+- 더 복잡한 파티클 패턴 (스월러, 트레일 등)
+- 텍스처 기반 파티클 (PIXI.Sprite)
+- 파티클 풀링 최적화
+
+**다음 단계**: Phase 3B 계속 진행
+- Round Management
+- Shop System
+- 추가 무기 구현
+
+---
+
+## 🔬 기술적 하이라이트
+
+### PixiJS backgroundAlpha vs transparent
+```javascript
+// ❌ 검은 화면
+{ transparent: true }
+
+// ✅ 투명 오버레이
+{ backgroundAlpha: 0 }
+```
+
+### CSS 오버레이 기법
+```css
+#canvasWrapper { position: relative; }
+#pixiContainer {
+  position: absolute;
+  top: 0; left: 0;
+  pointer-events: none;  /* 클릭 통과 */
+}
+```
+
+### PIXI.Graphics 동적 색상
+```javascript
+// tint로 색상 변경 (beginFill 후에도 가능)
+particle.tint = progress < 0.5 ? startColor : endColor;
+```
+
+### 역순 배열 순회
+```javascript
+// splice 안전하게 하기
+for (let i = array.length - 1; i >= 0; i--) {
+  if (shouldRemove) {
+    array.splice(i, 1);
+  }
+}
+```
+
+---
+
+## 📝 참고 자료
+
+- [PixiJS v7 Documentation](https://pixijs.download/release/docs/index.html)
+- [PIXI.Graphics](https://pixijs.download/release/docs/PIXI.Graphics.html)
+- [PIXI.Application Options](https://pixijs.download/release/docs/PIXI.Application.html)

@@ -36,6 +36,21 @@
             align-items: stretch;
         }
 
+        #canvasWrapper {
+            position: relative;
+        }
+
+        #pixiContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        #pixiContainer canvas {
+            display: block;
+        }
+
         /* 좌측 사이드바 - 3개 세로 배치 */
         #leftStats {
             display: flex;
@@ -222,8 +237,11 @@
             </div>
         </div>
 
-        <!-- 게임 캔버스 -->
-        <canvas id="gameCanvas" width="960" height="720"></canvas>
+        <!-- 게임 캔버스 + PixiJS 오버레이 -->
+        <div id="canvasWrapper">
+            <canvas id="gameCanvas" width="960" height="720"></canvas>
+            <div id="pixiContainer"></div>
+        </div>
 
         <!-- 우측 사이드바: Tank 4, 5, 6 -->
         <div id="rightStats">
@@ -292,6 +310,9 @@
     <!-- Matter.js Library -->
     <script src="js/lib/matter.min.js"></script>
 
+    <!-- PixiJS Library (v7) -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+
     <!-- Prototype Script -->
     <script>
         // ============================================
@@ -313,6 +334,137 @@
         });
 
         const world = engine.world;
+
+        // ============================================
+        // PixiJS Setup (Particle Effects Layer)
+        // ============================================
+        let pixiApp;
+        let particleContainer;
+        const activeParticles = [];
+
+        function initPixiJS() {
+            pixiApp = new PIXI.Application({
+                width: 960,
+                height: 720,
+                backgroundAlpha: 0,  // 완전 투명 배경 (중요!)
+                antialias: true
+            });
+
+            const container = document.getElementById('pixiContainer');
+            if (container) {
+                container.appendChild(pixiApp.view);
+            }
+
+            particleContainer = new PIXI.Container();
+            pixiApp.stage.addChild(particleContainer);
+
+            console.log('✅ PixiJS initialized');
+        }
+
+        // PixiJS 파티클 클래스 (네이티브 구현)
+        class Particle extends PIXI.Graphics {
+            constructor(x, y, vx, vy, config) {
+                super();
+
+                // 원형 파티클 그리기
+                this.beginFill(config.startColor || 0xffff00);
+                this.drawCircle(0, 0, config.radius || 3);
+                this.endFill();
+
+                this.position.set(x, y);
+                this.vx = vx;
+                this.vy = vy;
+
+                this.maxLife = config.lifetime || 1.0;
+                this.life = this.maxLife;
+                this.startColor = config.startColor || 0xffff00;
+                this.endColor = config.endColor || 0xff0000;
+                this.damping = config.damping || 0.95;
+            }
+
+            update(deltaTime) {
+                // 위치 업데이트
+                this.x += this.vx * deltaTime;
+                this.y += this.vy * deltaTime;
+
+                // 속도 감속
+                this.vx *= this.damping;
+                this.vy *= this.damping;
+
+                // 생명 감소
+                this.life -= deltaTime;
+
+                // 투명도
+                this.alpha = this.life / this.maxLife;
+
+                // 색상 변화 (간단하게 50% 기준)
+                const progress = 1 - (this.life / this.maxLife);
+                this.tint = progress < 0.5 ? this.startColor : this.endColor;
+
+                return this.life > 0;
+            }
+        }
+
+        // 탱크 폭발 파티클 생성
+        function createTankExplosionParticles(x, y) {
+            if (!particleContainer) return;
+
+            const count = 80;
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 100 + Math.random() * 150;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+
+                const particle = new Particle(x, y, vx, vy, {
+                    lifetime: 0.5 + Math.random() * 0.7,
+                    startColor: 0xffff00,  // 노란색
+                    endColor: 0xff0000,    // 빨간색
+                    damping: 0.95
+                });
+
+                particleContainer.addChild(particle);
+                activeParticles.push(particle);
+            }
+        }
+
+        // 미사일 충돌 파티클 생성
+        function createProjectileHitParticles(x, y) {
+            if (!particleContainer) return;
+
+            const count = 5;  // 15 → 5 (1/3)
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 50 + Math.random() * 100;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+
+                const particle = new Particle(x, y, vx, vy, {
+                    lifetime: 0.2 + Math.random() * 0.3,
+                    startColor: 0xffffff,  // 흰색
+                    endColor: 0xff8800,    // 주황색
+                    damping: 0.92,
+                    radius: 1  // 작은 스파크 (탱크 폭발은 3)
+                });
+
+                particleContainer.addChild(particle);
+                activeParticles.push(particle);
+            }
+        }
+
+        // 파티클 업데이트
+        function updateParticles(deltaTime) {
+            for (let i = activeParticles.length - 1; i >= 0; i--) {
+                const particle = activeParticles[i];
+                const alive = particle.update(deltaTime);
+
+                if (!alive) {
+                    particleContainer.removeChild(particle);
+                    particle.destroy();
+                    activeParticles.splice(i, 1);
+                }
+            }
+        }
 
         // ============================================
         // Collision Categories (정의를 먼저!)
@@ -493,8 +645,11 @@
                 this.alive = false;
                 console.log(`Tank ${this.id} destroyed!`);
 
-                // Create explosion effect at tank position
+                // Create explosion effect at tank position (Canvas)
                 createExplosion(this.body.position.x, this.body.position.y);
+
+                // Create particle explosion (PixiJS)
+                createTankExplosionParticles(this.body.position.x, this.body.position.y);
 
                 // Remove body from world
                 World.remove(world, this.body);
@@ -1029,8 +1184,11 @@
             // Apply damage
             hitTank.takeDamage(projectile.weaponData.damage);
 
-            // Create visual feedback
+            // Create visual feedback (Canvas)
             createHitEffect(projectileBody.position.x, projectileBody.position.y);
+
+            // Create particle effect (PixiJS)
+            createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
 
             // Remove projectile
             projectile.destroy();
@@ -1047,8 +1205,11 @@
             const projectile = projectiles.find(p => p.body === projectileBody);
             if (!projectile || !projectile.active) return;
 
-            // Create small visual feedback
+            // Create small visual feedback (Canvas)
             createHitEffect(projectileBody.position.x, projectileBody.position.y);
+
+            // Create particle effect (PixiJS)
+            createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
 
             // Remove projectile
             projectile.destroy();
@@ -1327,6 +1488,9 @@
             // Update explosions
             updateExplosions(deltaTime);
 
+            // Update particles (PixiJS)
+            updateParticles(deltaTime);
+
             // Update Matter.js physics
             Engine.update(engine, 1000 / 60);  // Fixed 60 FPS timestep
 
@@ -1341,6 +1505,10 @@
 
         // Start game loop
         console.log('🚀 Matter.js Prototype Starting...');
+
+        // Initialize PixiJS
+        initPixiJS();
+
         requestAnimationFrame(gameLoop);
 
         // Debug mode

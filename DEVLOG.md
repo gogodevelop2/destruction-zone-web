@@ -734,3 +734,462 @@ Matter.js의 충돌 이벤트 시스템이 매우 강력하고 사용하기 쉽�
 - [Matter.js Collision Events](https://brm.io/matter-js/docs/classes/Engine.html#events)
 - ARCHITECTURE.md - 전체 설계 문서
 - prototype.html - 작동하는 프로토타입
+
+---
+---
+
+## 2025년 1월 28일 - Phase 3A UI & Weapon System 완성
+
+### 🎯 목표
+게임 인터페이스 구축 및 무기 시스템 확장
+
+---
+
+## 📋 진행 사항
+
+### 1. 원본 게임 UI 분석
+
+#### DOSBox 설치 및 원본 게임 실행
+- **설치**: `brew install dosbox-x` + Rosetta 2
+- **실행**: dzone-v1.3/DZONE.EXE 분석
+- **발견**: 우측 세로 사이드바에 6개 탱크 슬롯 배치
+  - 각 슬롯: 무기명, 세로 게이지 2개
+  - 미니멀한 디자인
+
+#### 웹 버전 레이아웃 결정
+**최종 레이아웃**: 좌우 사이드바 방식
+```
+┌─────┬───────────┬─────┐
+│ T1  │           │ T4  │
+│ ███ │           │ ███ │
+├─────┤  게임화면  ├─────┤
+│ T2  │           │ T5  │
+│ ███ │           │ ███ │
+├─────┤           ├─────┤
+│ T3  │           │ T6  │
+│ ███ │           │ ███ │
+└─────┴───────────┴─────┘
+```
+
+**장점**:
+- 원본과 유사한 느낌
+- 최대 6대 탱크 지원
+- 게임 화면 중앙 배치
+- 좌우 대칭으로 균형감
+
+---
+
+### 2. UI 시스템 구현
+
+#### HTML 구조
+```html
+<div id="gameContainer">
+  <div id="leftStats">  <!-- 좌측 3개 -->
+    <div class="tank-stat" id="tank1-stat">...</div>
+    <div class="tank-stat" id="tank2-stat">...</div>
+    <div class="tank-stat" id="tank3-stat">...</div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="rightStats"> <!-- 우측 3개 -->
+    <div class="tank-stat" id="tank4-stat">...</div>
+    <div class="tank-stat" id="tank5-stat">...</div>
+    <div class="tank-stat" id="tank6-stat">...</div>
+  </div>
+</div>
+```
+
+#### 스탯 패널 내용
+각 탱크 슬롯마다:
+- **탱크 이름**: 탱크 색상으로 표시
+- **HP 게이지**: 세로 막대 (초록색, 아래→위)
+- **WPN 게이지**: 세로 막대 (노란색, 아래→위)
+- **현재 무기**: 무기 이름 표시
+- **점수**: $XXX 형식
+
+#### CSS 스타일링
+**미니멀 디자인 원칙**:
+- 슬롯 폭: 60px (좁게)
+- 게이지 폭: 12px (가늘게)
+- 폰트: monospace (심플)
+- 색상: 밝게, 효과 제거
+- 배경: 어두운 반투명
+
+```css
+.tank-stat {
+  width: 60px;
+  height: 240px; /* 720px ÷ 3 */
+  background: rgba(0, 10, 15, 0.8);
+  border: 1px solid #006666;
+}
+
+.gauge {
+  width: 12px;
+  height: 140px;
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.gauge-fill {
+  position: absolute;
+  bottom: 0; /* 아래에서 위로 */
+  height: X%; /* 실시간 업데이트 */
+}
+```
+
+---
+
+### 3. 게임 상태와 UI 연결
+
+#### Tank 클래스 확장
+```javascript
+// 무기 에너지 시스템 추가
+this.maxWeaponEnergy = 100;
+this.weaponEnergy = 100;
+this.weaponRechargeRate = 20; // per second
+
+// 점수 시스템
+this.score = 0;
+
+// update() 메서드에 에너지 충전 추가
+if (this.weaponEnergy < this.maxWeaponEnergy) {
+  this.weaponEnergy = Math.min(
+    this.maxWeaponEnergy,
+    this.weaponEnergy + this.weaponRechargeRate / 60
+  );
+}
+```
+
+#### UI 업데이트 함수
+```javascript
+function updateUI() {
+  tanks.forEach((tank, index) => {
+    const statPanel = document.getElementById(`tank${index + 1}-stat`);
+
+    if (tank && tank.alive) {
+      // 탱크 이름 & 색상
+      nameEl.textContent = tank.id;
+      nameEl.style.color = tank.config.color;
+
+      // 체력 게이지
+      const healthPercent = (tank.health / tank.config.maxHealth) * 100;
+      healthFill.style.height = `${healthPercent}%`;
+
+      // 무기 에너지 게이지
+      const energyPercent = (tank.weaponEnergy / tank.maxWeaponEnergy) * 100;
+      weaponFill.style.height = `${energyPercent}%`;
+
+      // 무기 & 점수
+      weaponInfo.textContent = WEAPON_DATA[tank.currentWeapon].name;
+      scoreEl.textContent = `$${tank.score}`;
+    }
+  });
+}
+```
+
+#### 게임 루프 통합
+```javascript
+function gameLoop() {
+  // ... 물리 업데이트
+  render();
+  updateUI(); // 매 프레임 UI 업데이트
+  requestAnimationFrame(gameLoop);
+}
+```
+
+---
+
+### 4. Shield 제거 및 단순화
+
+#### 설계 결정
+**Shield 시스템 제거** → 체력만 사용
+- 이유: 게임 단순화, UI 복잡도 감소
+- 원본 게임의 Shield는 선택적 아이템으로 재구현 가능
+
+#### 코드 변경
+```javascript
+// Tank 클래스
+this.config = {
+  maxHealth: 100  // maxShield 제거
+};
+this.health = this.config.maxHealth;
+// this.shield 제거
+
+// takeDamage 단순화
+takeDamage(damage) {
+  this.health -= damage; // shield 로직 제거
+  if (this.health <= 0) {
+    this.destroy();
+  }
+}
+```
+
+#### 렌더링 정리
+- 탱크 위 health bar 제거 (`renderHealthBars()` 메서드 삭제)
+- 모든 상태는 사이드바 UI로만 표시
+- 게임 화면 깔끔하게 유지
+
+---
+
+### 5. 무기 시스템 확장
+
+#### 무기 데이터 문서화
+**파일**: `WEAPONS.md`, `WEAPONS_KR.md`
+- 원본 DZONE.DOC (1994) 분석
+- 34개 전체 무기 문서화
+- 7개 포트별 분류
+- 각 무기의 damage, speed, energy, price, 전략 팁
+
+#### 속도 스케일링 시스템
+**문제**: weapon-data.js의 speed=200이 실제로는 너무 빠름
+**원인**: DOS 게임 단위 vs 웹 픽셀 단위 차이
+
+**해결책**: 스케일 팩터 도입
+```javascript
+const SPEED_SCALE_FACTOR = 0.01;  // 200 * 0.01 = 2px/frame
+
+// Projectile 생성 시
+const actualSpeed = weaponData.speed * SPEED_SCALE_FACTOR;
+```
+
+**장점**:
+- 원본 게임 데이터 보존
+- 밸런싱 쉬움
+- 역사적 데이터 유지
+
+#### 무기별 렌더링 차별화
+**MISSILE**: 원형 + 꼬리
+```javascript
+ctx.fillStyle = this.color;
+ctx.arc(pos.x, pos.y, this.weaponData.size, 0, Math.PI * 2);
+// + trail
+```
+
+**LASER**: 긴 빔 + 글로우
+```javascript
+const beamLength = 20;
+ctx.strokeStyle = this.color;
+ctx.lineCap = 'round';
+// 빔 그리기
+```
+
+#### 충돌 필터링 최적화
+**문제**: 미사일끼리 충돌해서 튕겨나감
+**해결**: Matter.js collisionFilter 활용
+
+```javascript
+const COLLISION_CATEGORY = {
+  TANK: 0x0001,
+  PROJECTILE: 0x0002,
+  WALL: 0x0004
+};
+
+// Projectile body
+collisionFilter: {
+  category: COLLISION_CATEGORY.PROJECTILE,
+  mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.WALL
+  // PROJECTILE 제외 → 미사일끼리 통과
+}
+```
+
+**결과**:
+- 미사일끼리 통과
+- 탱크/벽과는 충돌
+- 물리적 특성 유지 (isSensor: false)
+
+#### 무기별 물리 특성
+**LASER**: 낮은 밀도
+```javascript
+density: isLaser ? 0.001 : 0.4
+```
+- 탱크를 밀지 않음
+- 데미지만 줌
+- 벽에 부딪히면 사라짐
+
+**MISSILE**: 일반 밀도
+- 탱크를 살짝 밀음
+- 물리적 충격 + 데미지
+
+---
+
+### 6. 무기 에너지 시스템
+
+#### 에너지 소비
+```javascript
+function fireProjectile(tank) {
+  const weaponData = WEAPON_DATA[tank.currentWeapon];
+
+  // 에너지 체크
+  if (tank.weaponEnergy < weaponData.energyCost) {
+    return; // 발사 불가
+  }
+
+  // 에너지 소모
+  tank.weaponEnergy -= weaponData.energyCost;
+
+  // 발사체 생성
+  // ...
+}
+```
+
+#### 에너지 충전
+```javascript
+// Tank.update() 내부
+if (this.weaponEnergy < this.maxWeaponEnergy) {
+  this.weaponEnergy = Math.min(
+    this.maxWeaponEnergy,
+    this.weaponEnergy + this.weaponRechargeRate / 60
+  );
+}
+```
+
+**밸런스**:
+- 최대 에너지: 100
+- 충전 속도: 20/초 (초당 1/5 충전)
+- MISSILE: 4 에너지 (0.2초 충전)
+- LASER: 6 에너지 (0.3초 충전)
+
+#### 실시간 UI 반영
+- WPN 게이지가 발사 시 즉시 감소
+- 서서히 차오름
+- 시각적 피드백 명확
+
+---
+
+### 7. 다중 발사체 시스템
+
+#### DOUBLE_MISSILE 구현
+```javascript
+const projectileCount = weaponData.projectileCount || 1;
+
+if (projectileCount > 1) {
+  const spacing = 6;  // 미사일 간격
+  const perpAngle = tank.body.angle + Math.PI / 2;
+
+  for (let i = 0; i < projectileCount; i++) {
+    // 중심에서 좌우로 배치
+    const offset = (i - (projectileCount - 1) / 2) * spacing;
+
+    const spawnX = tank.body.position.x +
+                   Math.cos(tank.body.angle) * barrelLength +
+                   Math.cos(perpAngle) * offset;
+    // ...
+  }
+}
+```
+
+**특징**:
+- 2개 이상 발사체를 평행 배치
+- 탱크 진행 방향에 수직으로 분산
+- 중심 기준 대칭 배치
+- 확장 가능 (TRIPLE, QUAD 등)
+
+---
+
+## 🎮 구현된 무기 (3개)
+
+### 1. MISSILE
+- **타입**: 기본 발사체
+- **데미지**: 4
+- **에너지**: 4
+- **속도**: 200 (2px/frame)
+- **렌더링**: 원형 + 꼬리
+- **물리**: 일반 밀도 (0.4)
+
+### 2. LASER
+- **타입**: 빔
+- **데미지**: 6
+- **에너지**: 6
+- **속도**: 400 (4px/frame, 2배 빠름)
+- **렌더링**: 20px 긴 빔 + 글로우
+- **물리**: 낮은 밀도 (0.001)
+
+### 3. DOUBLE_MISSILE
+- **타입**: 다중 발사체
+- **데미지**: 6 (총합)
+- **에너지**: 4
+- **속도**: 200
+- **발사체**: 2개 평행
+- **렌더링**: 원형 + 꼬리
+
+---
+
+## 📊 통계
+
+**Phase 3A 작업 시간**: 약 3시간
+**코드 라인 수**:
+- prototype.html: 706줄 → 1,350줄 (+644줄)
+- 추가된 기능:
+  - UI 시스템: 200줄
+  - 무기 에너지 시스템: 80줄
+  - 다중 발사체: 50줄
+  - 무기별 렌더링: 70줄
+  - 충돌 필터링: 30줄
+  - 기타: 214줄
+
+**추가 파일**:
+- WEAPONS.md: 401줄 (영문)
+- WEAPONS_KR.md: 한글 번역 + 추가 정보
+
+**커밋**:
+- Phase 3A: UI & Weapon System 구현
+
+---
+
+## 🎯 결론
+
+**Phase 3A 성공!** ✅
+
+게임 인터페이스와 무기 시스템의 기초가 완성되었습니다:
+- 실시간 UI가 게임 상태를 정확히 반영
+- 무기 에너지 시스템이 밸런스있게 작동
+- 여러 타입의 무기가 각각 다른 느낌
+- 원본 게임의 미니멀한 느낌 재현
+
+**핵심 설계 결정**:
+1. **Shield 제거**: 게임 단순화
+2. **충돌 필터링**: 미사일끼리 통과
+3. **속도 스케일링**: 원본 데이터 보존
+4. **밀도 차별화**: 무기별 물리 특성
+
+**다음 단계**: Phase 3B (Game Flow Systems)
+- Round Management
+- Shop System
+- 추가 무기 구현 (TRIPLE, TRI-STRIKER, BLASTER 등)
+
+---
+
+## 🔧 기술적 하이라이트
+
+### Matter.js collisionFilter 활용
+비트 마스크를 사용한 정교한 충돌 제어:
+```javascript
+category: 0x0002,           // 이 객체는 PROJECTILE
+mask: 0x0001 | 0x0004       // TANK, WALL과만 충돌
+// PROJECTILE과는 충돌 안함
+```
+
+### CSS Flexbox 레이아웃
+```css
+#gameContainer {
+  display: flex;
+  flex-direction: row;  /* 좌-중-우 */
+}
+
+.tank-stat {
+  height: 240px;  /* 720 ÷ 3 */
+}
+```
+
+### 실시간 게이지 업데이트
+```javascript
+// CSS height 속성을 동적으로 변경
+element.style.height = `${percentage}%`;
+```
+
+---
+
+## 📝 참고 자료
+
+- WEAPONS.md - 34개 전체 무기 문서
+- ARCHITECTURE.md - 업데이트된 Phase 구조
+- [Matter.js Collision Filtering](https://brm.io/matter-js/docs/classes/Body.html#property_collisionFilter)
+- dzone-v1.3/DZONE.DOC - 원본 게임 매뉴얼

@@ -20,12 +20,122 @@
             min-height: 100vh;
             font-family: 'Courier New', monospace;
             color: #00ffff;
+            padding: 20px;
         }
 
         h1 {
-            margin: 20px 0;
+            margin-bottom: 15px;
             font-size: 24px;
             text-shadow: 0 0 10px #00ffff;
+        }
+
+        #gameContainer {
+            display: flex;
+            flex-direction: row;
+            gap: 0;
+            align-items: stretch;
+        }
+
+        /* 좌측 사이드바 - 3개 세로 배치 */
+        #leftStats {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            width: 60px;
+        }
+
+        /* 우측 사이드바 - 3개 세로 배치 */
+        #rightStats {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            width: 60px;
+        }
+
+        /* 각 탱크 스탯 패널 - 세로로 길게 */
+        .tank-stat {
+            background: rgba(0, 10, 15, 0.8);
+            border: 1px solid #006666;
+            border-top: none;
+            padding: 8px 3px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            height: 240px; /* 720 / 3 = 240 */
+            justify-content: flex-start;
+        }
+
+        .tank-stat:first-child {
+            border-top: 1px solid #006666;
+        }
+
+        .tank-stat .tank-name {
+            font-size: 11px;
+            font-weight: normal;
+            font-family: monospace;
+            color: #00ffff;
+        }
+
+        .tank-stat .gauges {
+            display: flex;
+            gap: 6px;
+            flex-direction: row;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .gauge-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            flex: 1;
+        }
+
+        .gauge-label {
+            font-size: 9px;
+            font-family: monospace;
+            color: #00cccc;
+        }
+
+        /* 세로 게이지 바 */
+        .gauge {
+            width: 12px;
+            height: 140px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #004444;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 아래에서 위로 차오르는 게이지 */
+        .gauge-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            transition: height 0.2s ease;
+        }
+
+        .gauge-fill.health {
+            background: #00cc00;
+        }
+
+        .gauge-fill.weapon {
+            background: #cccc00;
+        }
+
+        .tank-stat .weapon-info {
+            font-size: 10px;
+            font-family: monospace;
+            color: #cccccc;
+        }
+
+        .tank-stat .score {
+            font-size: 9px;
+            font-family: monospace;
+            color: #999999;
         }
 
         #gameCanvas {
@@ -34,70 +144,150 @@
             background: #000011;
         }
 
-        .info {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(0, 100, 150, 0.2);
-            border: 1px solid #00ffff;
-            border-radius: 5px;
-            max-width: 960px;
-        }
-
-        .info h2 {
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-
-        .info p {
-            margin: 5px 0;
-            font-size: 14px;
-            color: #00dddd;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .key {
-            background: rgba(0, 255, 255, 0.1);
-            padding: 5px;
-            border-radius: 3px;
-        }
-
-        #stats {
+        #debugInfo {
             position: absolute;
             top: 10px;
-            left: 10px;
+            right: 10px;
             background: rgba(0, 0, 0, 0.8);
             padding: 10px;
-            border: 1px solid #00ffff;
-            font-size: 12px;
+            border: 1px solid #ff00ff;
+            font-size: 11px;
             line-height: 1.5;
+            color: #ff00ff;
         }
     </style>
 </head>
 <body>
-    <h1>🎮 DESTRUCTION ZONE - Matter.js Prototype</h1>
+    <h1>🎮 DESTRUCTION ZONE</h1>
 
-    <canvas id="gameCanvas" width="960" height="720"></canvas>
-
-    <div class="info">
-        <h2>Controls</h2>
-        <div class="controls">
-            <p class="key">⬆️ Arrow Up - Thrust Forward</p>
-            <p class="key">⬇️ Arrow Down - Thrust Backward</p>
-            <p class="key">⬅️ Arrow Left - Rotate Left</p>
-            <p class="key">➡️ Arrow Right - Rotate Right</p>
-            <p class="key">SPACE - Fire Projectile</p>
-            <p class="key">D - Toggle Debug Mode</p>
+    <div id="gameContainer">
+        <!-- 좌측 사이드바: Tank 1, 2, 3 -->
+        <div id="leftStats">
+            <div class="tank-stat" id="tank1-stat">
+                <div class="tank-name">TANK 1</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank2-stat">
+                <div class="tank-name">TANK 2</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank3-stat">
+                <div class="tank-name">TANK 3</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
         </div>
-        <p style="margin-top: 10px;">🎯 Goal: Test projectiles, collision detection, and multiple tanks</p>
+
+        <!-- 게임 캔버스 -->
+        <canvas id="gameCanvas" width="960" height="720"></canvas>
+
+        <!-- 우측 사이드바: Tank 4, 5, 6 -->
+        <div id="rightStats">
+            <div class="tank-stat" id="tank4-stat">
+                <div class="tank-name">TANK 4</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank5-stat">
+                <div class="tank-name">TANK 5</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank6-stat">
+                <div class="tank-name">TANK 6</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+        </div>
     </div>
 
-    <div id="stats"></div>
+    <div id="debugInfo" style="display: none;"></div>
 
     <!-- Matter.js Library -->
     <script src="js/lib/matter.min.js"></script>
@@ -110,7 +300,6 @@
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const statsDiv = document.getElementById('stats');
 
         // Create Matter.js engine
         const Engine = Matter.Engine;
@@ -125,13 +314,51 @@
 
         const world = engine.world;
 
+        // ============================================
+        // Collision Categories (정의를 먼저!)
+        // ============================================
+        // Collision categories (bit flags)
+        const COLLISION_CATEGORY = {
+            TANK: 0x0001,        // 0001
+            PROJECTILE: 0x0002,  // 0010
+            WALL: 0x0004         // 0100
+        };
+
         // Create boundary walls
         const wallThickness = 50;
         const walls = [
-            Bodies.rectangle(480, -25, 960, wallThickness, { isStatic: true, label: 'wall' }),
-            Bodies.rectangle(480, 745, 960, wallThickness, { isStatic: true, label: 'wall' }),
-            Bodies.rectangle(-25, 360, wallThickness, 720, { isStatic: true, label: 'wall' }),
-            Bodies.rectangle(985, 360, wallThickness, 720, { isStatic: true, label: 'wall' })
+            Bodies.rectangle(480, -25, 960, wallThickness, {
+                isStatic: true,
+                label: 'wall',
+                collisionFilter: {
+                    category: COLLISION_CATEGORY.WALL,
+                    mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                }
+            }),
+            Bodies.rectangle(480, 745, 960, wallThickness, {
+                isStatic: true,
+                label: 'wall',
+                collisionFilter: {
+                    category: COLLISION_CATEGORY.WALL,
+                    mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                }
+            }),
+            Bodies.rectangle(-25, 360, wallThickness, 720, {
+                isStatic: true,
+                label: 'wall',
+                collisionFilter: {
+                    category: COLLISION_CATEGORY.WALL,
+                    mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                }
+            }),
+            Bodies.rectangle(985, 360, wallThickness, 720, {
+                isStatic: true,
+                label: 'wall',
+                collisionFilter: {
+                    category: COLLISION_CATEGORY.WALL,
+                    mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
+                }
+            })
         ];
 
         World.add(world, walls);
@@ -148,7 +375,8 @@
                     density: config.density || 0.08,       // Mass per area (armor thickness)
                     friction: config.friction || 0.8,
                     frictionAir: config.frictionAir || 0.12,
-                    color: config.color || '#00ffff'
+                    color: config.color || '#00ffff',
+                    maxHealth: config.maxHealth || 100
                 };
 
                 // Define tank shape as triangle vertices (relative to center)
@@ -166,17 +394,46 @@
                     frictionAir: this.config.frictionAir,
                     frictionStatic: 1.0,
                     restitution: 0.1,
-                    label: 'tank'
+                    label: 'tank',
+                    collisionFilter: {
+                        category: COLLISION_CATEGORY.TANK,
+                        mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE | COLLISION_CATEGORY.WALL
+                    }
                 }, true);  // true = flagInternal (auto-decompose if needed)
 
                 World.add(world, this.body);
+
+                // Health state (no shield)
+                this.health = this.config.maxHealth;
+                this.alive = true;
+
+                // Weapon state
+                this.currentWeapon = 'MISSILE';  // Default weapon
+                this.maxWeaponEnergy = 100;
+                this.weaponEnergy = 100;
+                this.weaponRechargeRate = 20; // per second
+
+                // Score
+                this.score = 0;
 
                 // Input state
                 this.thrust = 0;      // -1, 0, 1
                 this.rotation = 0;    // -1, 0, 1
             }
 
+            switchWeapon(weaponType) {
+                if (WEAPON_DATA[weaponType]) {
+                    this.currentWeapon = weaponType;
+                    console.log(`${this.id} switched to ${WEAPON_DATA[weaponType].name}`);
+                } else {
+                    console.error(`Unknown weapon: ${weaponType}`);
+                }
+            }
+
             update() {
+                // Don't update if destroyed
+                if (!this.alive) return;
+
                 // Apply thrust force
                 if (this.thrust !== 0) {
                     const forceMagnitude = this.thrust * this.config.thrustPower;
@@ -204,12 +461,49 @@
                     Body.setAngularVelocity(this.body, this.body.angularVelocity * (1 - rotationBrake));
                 }
 
+                // Recharge weapon energy (fixed 60 FPS, so 1/60 = 0.0167s per frame)
+                if (this.weaponEnergy < this.maxWeaponEnergy) {
+                    this.weaponEnergy = Math.min(
+                        this.maxWeaponEnergy,
+                        this.weaponEnergy + this.weaponRechargeRate / 60
+                    );
+                }
+
                 // Reset inputs (will be set by keyboard handler)
                 this.thrust = 0;
                 this.rotation = 0;
             }
 
+            takeDamage(damage) {
+                if (!this.alive) return;
+
+                // Damage health directly (no shield)
+                this.health -= damage;
+
+                // Check if destroyed
+                if (this.health <= 0) {
+                    this.health = 0;
+                    this.destroy();
+                }
+            }
+
+            destroy() {
+                if (!this.alive) return;
+
+                this.alive = false;
+                console.log(`Tank ${this.id} destroyed!`);
+
+                // Create explosion effect at tank position
+                createExplosion(this.body.position.x, this.body.position.y);
+
+                // Remove body from world
+                World.remove(world, this.body);
+            }
+
             render(ctx) {
+                // Don't render if destroyed
+                if (!this.alive) return;
+
                 ctx.save();
 
                 const pos = this.body.position;
@@ -285,39 +579,50 @@
                     ctx.fill();
                 }
             }
+
         }
 
         // ============================================
         // Projectile Class (Matter.js Wrapper)
         // ============================================
         class Projectile {
-            constructor(x, y, angle, speed, config) {
-                this.config = {
-                    damage: config.damage || 10,
-                    color: config.color || '#ffff00',
-                    size: config.size || 3
-                };
+            constructor(x, y, angle, weaponData, ownerColor) {
+                // Store weapon data
+                this.weaponData = weaponData;
+                this.type = weaponData.type;
+                this.color = ownerColor || weaponData.color;  // Use tank color or weapon default
 
-                // Create as physical body with high density
-                this.body = Bodies.circle(x, y, this.config.size, {
-                    isSensor: false,  // 물리적 충돌 활성화
+                // Calculate actual speed (DOS units → web pixels)
+                const actualSpeed = weaponData.speed * SPEED_SCALE_FACTOR;
+
+                // Laser는 밀도만 낮게 (물리 바디지만 질량 거의 없음)
+                // Missile은 일반 물리 바디 (데미지 + 물리적 충돌)
+                const isLaser = (this.type === 'LASER');
+
+                // Create as physical body with collision filtering
+                this.body = Bodies.circle(x, y, weaponData.size, {
+                    isSensor: false,   // 모두 물리 바디 (충돌 감지)
                     label: 'projectile',
-                    density: 0.4,  // 탱크의 5배 (탱크: 0.08)
-                    frictionAir: 0,  // No air resistance for projectiles
-                    restitution: 0,  // 튕김 없음 (0.8 → 0)
-                    friction: 0.1  // 마찰
+                    density: isLaser ? 0.001 : 0.4,      // 레이저는 밀도 아주 낮게 (탱크를 안 밀음)
+                    frictionAir: 0,    // No air resistance for projectiles
+                    restitution: 0,    // 튕김 없음
+                    friction: 0.1,     // 마찰
+                    collisionFilter: {
+                        category: COLLISION_CATEGORY.PROJECTILE,
+                        mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.WALL  // 미사일끼리는 충돌 안함
+                    }
                 });
 
                 // Set initial velocity
                 const velocity = {
-                    x: Math.cos(angle) * speed,
-                    y: Math.sin(angle) * speed
+                    x: Math.cos(angle) * actualSpeed,
+                    y: Math.sin(angle) * actualSpeed
                 };
                 Body.setVelocity(this.body, velocity);
 
                 World.add(world, this.body);
 
-                this.lifetime = 3.0;  // seconds
+                this.lifetime = weaponData.lifetime;
                 this.age = 0;
                 this.active = true;
             }
@@ -347,37 +652,126 @@
                 if (!this.active) return;
 
                 const pos = this.body.position;
-
-                ctx.save();
-                ctx.shadowColor = this.config.color;
-                ctx.shadowBlur = 10;
-
-                // Draw projectile
-                ctx.fillStyle = this.config.color;
-                ctx.beginPath();
-                ctx.arc(pos.x, pos.y, this.config.size, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Draw trail
                 const vel = this.body.velocity;
-                const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2);
-                const trailLength = Math.min(speed * 0.3, 15);
                 const angle = Math.atan2(vel.y, vel.x);
 
-                ctx.strokeStyle = this.config.color;
-                ctx.lineWidth = 2;
-                ctx.globalAlpha = 0.5;
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
-                ctx.lineTo(
-                    pos.x - Math.cos(angle) * trailLength,
-                    pos.y - Math.sin(angle) * trailLength
-                );
-                ctx.stroke();
+                ctx.save();
+
+                // Laser: Draw as long beam
+                if (this.type === 'LASER') {
+                    const beamLength = 20;  // Long beam
+                    const beamWidth = 2;
+
+                    // Main beam with glow (tank color)
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 15;
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = beamWidth;
+                    ctx.lineCap = 'round';
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        pos.x - Math.cos(angle) * beamLength / 2,
+                        pos.y - Math.sin(angle) * beamLength / 2
+                    );
+                    ctx.lineTo(
+                        pos.x + Math.cos(angle) * beamLength / 2,
+                        pos.y + Math.sin(angle) * beamLength / 2
+                    );
+                    ctx.stroke();
+
+                    // Inner bright core (white)
+                    ctx.shadowColor = '#ffffff';
+                    ctx.shadowBlur = 5;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        pos.x - Math.cos(angle) * beamLength / 2,
+                        pos.y - Math.sin(angle) * beamLength / 2
+                    );
+                    ctx.lineTo(
+                        pos.x + Math.cos(angle) * beamLength / 2,
+                        pos.y + Math.sin(angle) * beamLength / 2
+                    );
+                    ctx.stroke();
+                }
+                // Missile: Draw as circle with trail
+                else {
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10;
+
+                    // Draw projectile
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(pos.x, pos.y, this.weaponData.size, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw trail
+                    const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2);
+                    const trailLength = Math.min(speed * 0.3, 15);
+
+                    ctx.strokeStyle = this.color;
+                    ctx.lineWidth = 2;
+                    ctx.globalAlpha = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                    ctx.lineTo(
+                        pos.x - Math.cos(angle) * trailLength,
+                        pos.y - Math.sin(angle) * trailLength
+                    );
+                    ctx.stroke();
+                }
 
                 ctx.restore();
             }
         }
+
+        // ============================================
+        // Game Constants
+        // ============================================
+        // Speed scale factor: DOS game units → Web canvas pixels
+        // DOS game had smaller resolution (320x200 or 640x480)
+        // Web canvas is 960x720, so we need to scale down
+        // Original MISSILE speed: 200 (DOS units) → 2 px/s (web)
+        const SPEED_SCALE_FACTOR = 0.01;  // 200 * 0.01 = 2
+
+        // Weapon Data (from original game, speeds in DOS units)
+        const WEAPON_DATA = {
+            MISSILE: {
+                name: 'MISSILE',
+                type: 'MISSILE',
+                damage: 4,
+                energyCost: 4,
+                speed: 200,        // DOS units
+                price: 2,
+                color: '#ffff00',
+                lifetime: 3.0,
+                size: 2
+            },
+            LASER: {
+                name: 'BEAM LASER',
+                type: 'LASER',
+                damage: 6,
+                energyCost: 6,
+                speed: 400,        // DOS units (2x faster than missile)
+                price: 150,
+                color: '#ff0000',
+                lifetime: 2.0,
+                size: 1.5
+            },
+            DOUBLE_MISSILE: {
+                name: 'DOUBLE MISSILE',
+                type: 'DOUBLE_MISSILE',
+                damage: 6,
+                energyCost: 4,
+                speed: 200,        // DOS units
+                price: 100,
+                color: '#ffff00',
+                lifetime: 3.0,
+                size: 2,
+                projectileCount: 2
+            }
+        };
 
         // ============================================
         // Game State
@@ -388,7 +782,7 @@
             rotationSpeed: 0.01,
             color: '#00ffff'
         });
-        playerTank.id = 'player';
+        playerTank.id = 'TANK 1';
 
         const enemyTank = new Tank(240, 180, {
             size: 30,
@@ -396,10 +790,65 @@
             rotationSpeed: 0.01,
             color: '#ff00ff'
         });
-        enemyTank.id = 'enemy';
+        enemyTank.id = 'TANK 2';
+
+        // Tank array for UI updates (max 6 tanks)
+        const tanks = [playerTank, enemyTank, null, null, null, null];
 
         const projectiles = [];
         const keys = {};
+
+        // ============================================
+        // UI Update Function
+        // ============================================
+        function updateUI() {
+            tanks.forEach((tank, index) => {
+                const statPanel = document.getElementById(`tank${index + 1}-stat`);
+                if (!statPanel) return;
+
+                if (tank && tank.alive) {
+                    // Update tank name
+                    const nameEl = statPanel.querySelector('.tank-name');
+                    nameEl.textContent = tank.id;
+                    nameEl.style.color = tank.config.color;
+
+                    // Update health gauge
+                    const healthPercent = (tank.health / tank.config.maxHealth) * 100;
+                    const healthFill = statPanel.querySelector('.gauge-fill.health');
+                    healthFill.style.height = `${healthPercent}%`;
+
+                    // Update weapon energy gauge
+                    const energyPercent = (tank.weaponEnergy / tank.maxWeaponEnergy) * 100;
+                    const weaponFill = statPanel.querySelector('.gauge-fill.weapon');
+                    weaponFill.style.height = `${energyPercent}%`;
+
+                    // Update weapon info
+                    const weaponInfo = statPanel.querySelector('.weapon-info');
+                    weaponInfo.textContent = WEAPON_DATA[tank.currentWeapon]?.name.substring(0, 6) || 'N/A';
+
+                    // Update score
+                    const scoreEl = statPanel.querySelector('.score');
+                    scoreEl.textContent = `$${tank.score}`;
+                } else {
+                    // Empty slot or dead tank
+                    const nameEl = statPanel.querySelector('.tank-name');
+                    nameEl.textContent = `-`;
+                    nameEl.style.color = '#444444';
+
+                    const healthFill = statPanel.querySelector('.gauge-fill.health');
+                    healthFill.style.height = '0%';
+
+                    const weaponFill = statPanel.querySelector('.gauge-fill.weapon');
+                    weaponFill.style.height = '0%';
+
+                    const weaponInfo = statPanel.querySelector('.weapon-info');
+                    weaponInfo.textContent = '-';
+
+                    const scoreEl = statPanel.querySelector('.score');
+                    scoreEl.textContent = '-';
+                }
+            });
+        }
 
         // ============================================
         // Input Handler
@@ -445,8 +894,22 @@
 
             // Fire projectile (Space key)
             if (keys['Space'] && !keys['Space_fired']) {
-                fireProjectile(playerTank, '#00ffff');
+                fireProjectile(playerTank);
                 keys['Space_fired'] = true;
+            }
+
+            // Weapon switching (1, 2, 3 keys)
+            if (keys['Digit1']) {
+                playerTank.switchWeapon('MISSILE');
+                keys['Digit1'] = false;
+            }
+            if (keys['Digit2']) {
+                playerTank.switchWeapon('LASER');
+                keys['Digit2'] = false;
+            }
+            if (keys['Digit3']) {
+                playerTank.switchWeapon('DOUBLE_MISSILE');
+                keys['Digit3'] = false;
             }
 
             // Debug toggle
@@ -456,28 +919,71 @@
             }
         }
 
-        function fireProjectile(tank, color) {
+        function fireProjectile(tank) {
+            // Can't fire if destroyed
+            if (!tank.alive) return;
+
+            // Get weapon data from tank's current weapon
+            const weaponData = WEAPON_DATA[tank.currentWeapon];
+            if (!weaponData) {
+                console.error(`Unknown weapon type: ${tank.currentWeapon}`);
+                return;
+            }
+
+            // Check if enough energy
+            if (tank.weaponEnergy < weaponData.energyCost) {
+                return; // Not enough energy
+            }
+
+            // Consume weapon energy
+            tank.weaponEnergy -= weaponData.energyCost;
+
             const size = tank.config.size * 0.8;
             // 삼각형 앞 끝에서 생성 (size * 0.75가 삼각형 앞 끝 위치)
             const barrelLength = size * 0.75 + 5;  // 앞 끝에서 5px 더 앞
 
-            // Calculate spawn position at barrel tip
-            const spawnX = tank.body.position.x + Math.cos(tank.body.angle) * barrelLength;
-            const spawnY = tank.body.position.y + Math.sin(tank.body.angle) * barrelLength;
+            // Multi-projectile weapons (DOUBLE_MISSILE, etc.)
+            const projectileCount = weaponData.projectileCount || 1;
 
-            const projectile = new Projectile(
-                spawnX,
-                spawnY,
-                tank.body.angle,
-                3,  // speed
-                {
-                    damage: 10,
-                    color: color,
-                    size: 2  // 크기 축소 (6 → 2)
+            if (projectileCount === 1) {
+                // Single projectile (MISSILE, LASER)
+                const spawnX = tank.body.position.x + Math.cos(tank.body.angle) * barrelLength;
+                const spawnY = tank.body.position.y + Math.sin(tank.body.angle) * barrelLength;
+
+                const projectile = new Projectile(
+                    spawnX,
+                    spawnY,
+                    tank.body.angle,
+                    weaponData,
+                    tank.config.color
+                );
+                projectiles.push(projectile);
+            } else {
+                // Multiple projectiles (DOUBLE_MISSILE: 2개를 좌우로)
+                const spacing = 6;  // 미사일 간 간격
+                const perpAngle = tank.body.angle + Math.PI / 2;  // 탱크에 수직 방향
+
+                for (let i = 0; i < projectileCount; i++) {
+                    // 중심에서 좌우로 배치
+                    const offset = (i - (projectileCount - 1) / 2) * spacing;
+
+                    const spawnX = tank.body.position.x +
+                                   Math.cos(tank.body.angle) * barrelLength +
+                                   Math.cos(perpAngle) * offset;
+                    const spawnY = tank.body.position.y +
+                                   Math.sin(tank.body.angle) * barrelLength +
+                                   Math.sin(perpAngle) * offset;
+
+                    const projectile = new Projectile(
+                        spawnX,
+                        spawnY,
+                        tank.body.angle,
+                        weaponData,
+                        tank.config.color
+                    );
+                    projectiles.push(projectile);
                 }
-            );
-
-            projectiles.push(projectile);
+            }
         }
 
         // ============================================
@@ -499,6 +1005,9 @@
                 } else if (bodyA.label === 'wall' && bodyB.label === 'projectile') {
                     handleProjectileWallHit(bodyB);
                 }
+                // TODO: Projectile → projectile collision
+                // Will be implemented with weapon system (different weapon types have different collision rules)
+                // e.g., missile vs missile = explode, missile vs laser = pass through
             });
         });
 
@@ -515,13 +1024,22 @@
                 hitTank = enemyTank;
             }
 
+            if (!hitTank || !hitTank.alive) return;
+
+            // Apply damage
+            hitTank.takeDamage(projectile.weaponData.damage);
+
             // Create visual feedback
             createHitEffect(projectileBody.position.x, projectileBody.position.y);
 
             // Remove projectile
             projectile.destroy();
 
-            console.log('Hit! Damage:', projectile.config.damage, 'Tank:', hitTank ? hitTank.id : 'unknown');
+            console.log('Hit! Damage:', projectile.weaponData.damage,
+                'Weapon:', projectile.weaponData.name,
+                'Tank:', hitTank.id,
+                'Shield:', Math.round(hitTank.shield),
+                'Health:', Math.round(hitTank.health));
         }
 
         function handleProjectileWallHit(projectileBody) {
@@ -540,6 +1058,7 @@
 
         // Hit effects array
         const hitEffects = [];
+        const explosions = [];
 
         function createHitEffect(x, y) {
             hitEffects.push({
@@ -550,11 +1069,34 @@
             });
         }
 
+        function createExplosion(x, y) {
+            // Create multiple explosion rings
+            for (let i = 0; i < 3; i++) {
+                explosions.push({
+                    x: x,
+                    y: y,
+                    age: 0,
+                    maxAge: 0.6 + i * 0.1,
+                    delay: i * 0.05,
+                    size: 1 + i * 0.3
+                });
+            }
+        }
+
         function updateHitEffects(deltaTime) {
             for (let i = hitEffects.length - 1; i >= 0; i--) {
                 hitEffects[i].age += deltaTime;
                 if (hitEffects[i].age >= hitEffects[i].maxAge) {
                     hitEffects.splice(i, 1);
+                }
+            }
+        }
+
+        function updateExplosions(deltaTime) {
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                explosions[i].age += deltaTime;
+                if (explosions[i].age >= explosions[i].maxAge) {
+                    explosions.splice(i, 1);
                 }
             }
         }
@@ -592,6 +1134,49 @@
             }
         }
 
+        function renderExplosions(ctx) {
+            for (const explosion of explosions) {
+                // Skip if still delayed
+                if (explosion.age < explosion.delay) continue;
+
+                const adjustedAge = explosion.age - explosion.delay;
+                const progress = adjustedAge / explosion.maxAge;
+                const alpha = 1 - progress;
+                const radius = 5 + progress * 50 * explosion.size;
+
+                ctx.save();
+
+                // Outer ring (orange to red)
+                const red = 255;
+                const green = Math.floor(200 * (1 - progress));
+                ctx.strokeStyle = `rgba(${red}, ${green}, 0, ${alpha * 0.8})`;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(explosion.x, explosion.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Inner ring
+                ctx.strokeStyle = `rgba(255, 255, 0, ${alpha * 0.6})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(explosion.x, explosion.y, radius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Flash at center (early in explosion)
+                if (progress < 0.3) {
+                    const flashAlpha = (1 - progress / 0.3) * 0.8;
+                    ctx.shadowColor = 'rgba(255, 200, 0, 1)';
+                    ctx.shadowBlur = 30;
+                    ctx.fillStyle = `rgba(255, 200, 0, ${flashAlpha})`;
+                    ctx.beginPath();
+                    ctx.arc(explosion.x, explosion.y, 15, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+        }
+
         // ============================================
         // AI System
         // ============================================
@@ -602,6 +1187,9 @@
             // Simple AI: Track player and fire
             const enemy = enemyTank;
             const target = playerTank;
+
+            // Don't do anything if enemy is destroyed or target is destroyed
+            if (!enemy.alive || !target.alive) return;
 
             // Calculate vector to target
             const dx = target.body.position.x - enemy.body.position.x;
@@ -635,7 +1223,7 @@
             // Fire at target if aimed correctly
             aiFireCooldown -= deltaTime;
             if (Math.abs(angleDiff) < 0.2 && aiFireCooldown <= 0) {
-                fireProjectile(enemy, '#ff00ff');
+                fireProjectile(enemy);
                 aiFireCooldown = AI_FIRE_COOLDOWN;
             }
         }
@@ -690,6 +1278,9 @@
 
             // Draw hit effects
             renderHitEffects(ctx);
+
+            // Draw explosions
+            renderExplosions(ctx);
         }
 
         // ============================================
@@ -733,31 +1324,17 @@
             // Update hit effects
             updateHitEffects(deltaTime);
 
+            // Update explosions
+            updateExplosions(deltaTime);
+
             // Update Matter.js physics
             Engine.update(engine, 1000 / 60);  // Fixed 60 FPS timestep
 
             // Render
             render();
 
-            // Update stats
-            const speed = Math.sqrt(
-                playerTank.body.velocity.x ** 2 +
-                playerTank.body.velocity.y ** 2
-            );
-            statsDiv.innerHTML = `
-                <strong>PLAYER</strong><br>
-                FPS: ${fps}<br>
-                Pos: (${Math.round(playerTank.body.position.x)}, ${Math.round(playerTank.body.position.y)})<br>
-                Angle: ${(playerTank.body.angle * 180 / Math.PI).toFixed(1)}°<br>
-                Speed: ${speed.toFixed(1)} px/s<br>
-                <br>
-                <strong>GAME</strong><br>
-                Projectiles: ${projectiles.length}<br>
-                Bodies: ${world.bodies.length}<br>
-                <br>
-                <span style="color: #888;">Space - Fire</span><br>
-                <span style="color: #888;">D - Debug</span>
-            `;
+            // Update UI gauges
+            updateUI();
 
             requestAnimationFrame(gameLoop);
         }

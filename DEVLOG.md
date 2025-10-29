@@ -2593,9 +2593,41 @@ renderPolygon(visualVertices);
 
 ---
 
+## 2025년 10월 30일 - PixiJS 발사체 전환 완료
+
+### 🎯 목표
+Canvas 2D → PixiJS WebGL 전환으로 100-200개 발사체 동시 처리 준비
+
+### 4단계 마이그레이션 (PIXI_PROJECTILE_MIGRATION.md)
+
+1. **Phase 1**: PixiJS 추가 (A/B 테스트)
+   - projectileContainer 생성, createProjectileGraphics() 구현
+
+2. **Phase 2**: BlurFilter 제거 결정
+   - 성능 병목 제거, 깔끔한 렌더링 확정
+
+3. **Phase 3**: Canvas 완전 제거
+   - render() 메서드 삭제, 100% PixiJS 전환
+
+4. **Phase 4**: 리팩토링 준비
+   - ProjectileRenderer 객체로 렌더링/물리 분리
+   - 상세한 리팩토링 가이드 주석
+
+### 성과
+- 렌더링 통합: Projectiles + Particles 모두 PixiJS
+- 명확한 책임 분리: ProjectileRenderer(렌더링) ↔ Projectile(물리/로직)
+- 리팩토링 준비 완료 (인터페이스 + 주석)
+
+**렌더링 레이어**: Background → Walls → **Projectiles(PixiJS)** → Tanks → Particles(PixiJS)
+
+**다음**: 모듈 분리 리팩토링 (src/rendering/, src/entities/)
+
+---
+
 ## 📝 참고 자료
 
 - [Canvas lineJoin](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/lineJoin)
 - [Matter.js Engine Options](https://brm.io/matter-js/docs/classes/Engine.html#property_positionIterations)
 - [TRON Legacy Design](https://www.artofvfx.com/tron-legacy/) - Visual inspiration
+- [PixiJS Graphics](https://pixijs.download/release/docs/PIXI.Graphics.html)
 - PIXI_PROJECTILE_MIGRATION.md - Projectile 전환 계획

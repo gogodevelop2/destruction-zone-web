@@ -341,10 +341,11 @@
         const world = engine.world;
 
         // ============================================
-        // PixiJS Setup (Particle Effects Layer)
+        // PixiJS Setup (Particle Effects & Projectile Layer)
         // ============================================
         let pixiApp;
         let particleContainer;
+        let projectileContainer;  // NEW: Projectile rendering layer
         const activeParticles = [];
 
         function initPixiJS() {
@@ -360,11 +361,24 @@
                 container.appendChild(pixiApp.view);
             }
 
+            // Rendering layer order (bottom to top):
+            // 1. Background (canvas 2D)
+            // 2. Walls (canvas 2D)
+            // 3. Projectiles (PixiJS) ← NEW
+            // 4. Tanks (canvas 2D)
+            // 5. Particles (PixiJS)
+
+            projectileContainer = new PIXI.Container();
+            pixiApp.stage.addChild(projectileContainer);
+
             particleContainer = new PIXI.Container();
             pixiApp.stage.addChild(particleContainer);
 
-            console.log('✅ PixiJS initialized');
+            console.log('✅ PixiJS initialized (projectile + particle layers)');
         }
+
+        // Initialize ProjectileRenderer after PixiJS setup
+        // NOTE: This will be called after initPixiJS() in the initialization sequence
 
         // PixiJS 파티클 클래스 (네이티브 구현)
         class Particle extends PIXI.Graphics {
@@ -900,10 +914,85 @@
         }
 
         // ============================================
-        // Projectile Class (Matter.js Wrapper)
+        // ProjectileRenderer (PixiJS Rendering Layer)
         // ============================================
+        // Manages all projectile rendering with PixiJS
+        //
+        // REFACTORING GUIDE:
+        // - Move this to src/rendering/ProjectileRenderer.js
+        // - Keep interface: init(), createGraphics(), add(), remove()
+        // - Responsibilities: Create sprites, manage container, handle rendering
+        // - Does NOT handle: Physics, collision, lifetime management
+        //
+        const ProjectileRenderer = {
+            container: null,
+
+            // Initialize renderer with PixiJS container
+            init(pixiContainer) {
+                this.container = pixiContainer;
+            },
+
+            // Create PixiJS Graphics object for projectile
+            createGraphics(type, color, weaponData) {
+                const graphics = new PIXI.Graphics();
+
+                // Convert CSS color string to hex number (e.g., '#00ff00' → 0x00ff00)
+                const colorHex = parseInt(color.replace('#', ''), 16);
+
+                if (type === 'LASER') {
+                    // Laser: Long beam with white core
+                    const beamLength = 20;
+
+                    // Outer colored beam
+                    graphics.lineStyle(2, colorHex, 1);
+                    graphics.moveTo(-beamLength/2, 0);
+                    graphics.lineTo(beamLength/2, 0);
+
+                    // Inner white core
+                    graphics.lineStyle(1, 0xffffff, 1);
+                    graphics.moveTo(-beamLength/2, 0);
+                    graphics.lineTo(beamLength/2, 0);
+
+                    // No BlurFilter for clean rendering
+
+                } else {
+                    // Missile: Circle (no glow for better performance)
+                    graphics.beginFill(colorHex, 1);
+                    graphics.drawCircle(0, 0, weaponData.size);
+                    graphics.endFill();
+
+                    // No BlurFilter for clean rendering
+                }
+
+                return graphics;
+            },
+
+            // Add sprite to container
+            add(sprite) {
+                this.container.addChild(sprite);
+            },
+
+            // Remove sprite from container and destroy
+            remove(sprite) {
+                this.container.removeChild(sprite);
+                sprite.destroy();
+            }
+        };
+
+        // ============================================
+        // Projectile Class (Physics + Logic)
+        // ============================================
+        // REFACTORING GUIDE:
+        // - Move this to src/entities/Projectile.js
+        // - Rendering is already separated to ProjectileRenderer
+        // - Responsibilities: Physics simulation, lifetime, collision handling
+        // - Does NOT handle: PixiJS graphics creation or rendering
+        // - Interface with renderer: Creates sprite in constructor, syncs in update(), cleans in destroy()
+        //
         class Projectile {
+            // RESPONSIBILITY: Physics + Lifetime + Rendering coordination
             constructor(x, y, angle, weaponData, ownerColor) {
+                // === PHYSICS SETUP ===
                 // Store weapon data
                 this.weaponData = weaponData;
                 this.type = weaponData.type;
@@ -942,10 +1031,36 @@
                 this.lifetime = weaponData.lifetime;
                 this.age = 0;
                 this.active = true;
+
+                // === RENDERING SETUP ===
+                // Create PixiJS sprite via ProjectileRenderer
+                this.pixiSprite = ProjectileRenderer.createGraphics(
+                    this.type,
+                    this.color,
+                    weaponData
+                );
+                this.pixiSprite.position.set(x, y);
+
+                // Set initial rotation based on velocity direction
+                const rotationAngle = Math.atan2(velocity.y, velocity.x);
+                this.pixiSprite.rotation = rotationAngle;
+
+                ProjectileRenderer.add(this.pixiSprite);
             }
 
+            // RESPONSIBILITY: Update lifetime + Sync visual with physics
             update(deltaTime) {
                 this.age += deltaTime;
+
+                // Sync PixiJS sprite position/rotation with physics body
+                if (this.pixiSprite) {
+                    const pos = this.body.position;
+                    const vel = this.body.velocity;
+                    const angle = Math.atan2(vel.y, vel.x);
+
+                    this.pixiSprite.position.set(pos.x, pos.y);
+                    this.pixiSprite.rotation = angle;
+                }
 
                 // Remove if too old or out of bounds
                 if (this.age >= this.lifetime || this.isOutOfBounds()) {
@@ -958,89 +1073,23 @@
                 return pos.x < 0 || pos.x > 960 || pos.y < 0 || pos.y > 720;
             }
 
+            // RESPONSIBILITY: Clean up physics body + Clean up rendering
             destroy() {
                 if (this.active) {
                     World.remove(world, this.body);
+
+                    // Clean up PixiJS sprite via ProjectileRenderer
+                    if (this.pixiSprite) {
+                        ProjectileRenderer.remove(this.pixiSprite);
+                        this.pixiSprite = null;
+                    }
+
                     this.active = false;
                 }
             }
 
-            render(ctx) {
-                if (!this.active) return;
-
-                const pos = this.body.position;
-                const vel = this.body.velocity;
-                const angle = Math.atan2(vel.y, vel.x);
-
-                ctx.save();
-
-                // Laser: Draw as long beam
-                if (this.type === 'LASER') {
-                    const beamLength = 20;  // Long beam
-                    const beamWidth = 2;
-
-                    // Main beam with glow (tank color)
-                    ctx.shadowColor = this.color;
-                    ctx.shadowBlur = 15;
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = beamWidth;
-                    ctx.lineCap = 'round';
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        pos.x - Math.cos(angle) * beamLength / 2,
-                        pos.y - Math.sin(angle) * beamLength / 2
-                    );
-                    ctx.lineTo(
-                        pos.x + Math.cos(angle) * beamLength / 2,
-                        pos.y + Math.sin(angle) * beamLength / 2
-                    );
-                    ctx.stroke();
-
-                    // Inner bright core (white)
-                    ctx.shadowColor = '#ffffff';
-                    ctx.shadowBlur = 5;
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        pos.x - Math.cos(angle) * beamLength / 2,
-                        pos.y - Math.sin(angle) * beamLength / 2
-                    );
-                    ctx.lineTo(
-                        pos.x + Math.cos(angle) * beamLength / 2,
-                        pos.y + Math.sin(angle) * beamLength / 2
-                    );
-                    ctx.stroke();
-                }
-                // Missile: Draw as circle with trail
-                else {
-                    ctx.shadowColor = this.color;
-                    ctx.shadowBlur = 10;
-
-                    // Draw projectile
-                    ctx.fillStyle = this.color;
-                    ctx.beginPath();
-                    ctx.arc(pos.x, pos.y, this.weaponData.size, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Draw trail
-                    const speed = Math.sqrt(vel.x ** 2 + vel.y ** 2);
-                    const trailLength = Math.min(speed * 0.3, 15);
-
-                    ctx.strokeStyle = this.color;
-                    ctx.lineWidth = 2;
-                    ctx.globalAlpha = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(pos.x, pos.y);
-                    ctx.lineTo(
-                        pos.x - Math.cos(angle) * trailLength,
-                        pos.y - Math.sin(angle) * trailLength
-                    );
-                    ctx.stroke();
-                }
-
-                ctx.restore();
-            }
+            // NOTE: render() method removed - PixiJS handles all rendering automatically
+            // Projectile sprites are updated in update() method and rendered by PixiJS
         }
 
         // ============================================
@@ -1772,12 +1821,8 @@
                 }
             });
 
-            // Draw projectiles
-            for (const projectile of projectiles) {
-                if (projectile.active) {
-                    projectile.render(ctx);
-                }
-            }
+            // Projectiles rendered by PixiJS (in projectileContainer)
+            // No manual rendering needed - PixiJS updates automatically
 
             // Hit effects and explosions now rendered by PixiJS (in particleContainer)
 
@@ -1841,6 +1886,9 @@
 
         // Initialize PixiJS
         initPixiJS();
+
+        // Initialize ProjectileRenderer
+        ProjectileRenderer.init(projectileContainer);
 
         requestAnimationFrame(gameLoop);
 

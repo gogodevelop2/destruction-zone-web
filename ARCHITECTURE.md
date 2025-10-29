@@ -2,7 +2,43 @@
 
 **Version:** 2.0 (Matter.js Rewrite)
 **Date:** January 2025
-**Status:** Design Phase
+**Status:** Phase 3A Complete → Refactoring Phase
+
+**Last Updated:** October 29, 2025
+
+---
+
+## Document History
+
+### Version 2.1 - October 29, 2025
+**Major Update: Refactoring Plan Added**
+
+**What Changed:**
+- ✅ Added comprehensive refactoring plan (Stage 1 & 2)
+- ✅ Updated file structure with 3 versions (Current → Stage 1 → Stage 2)
+- ✅ Documented migration strategy and git workflow
+- ✅ Updated status: Phase 3A Complete → Refactoring Phase
+
+**Why:**
+- Prototype reached 1,803 lines (68KB) - becoming hard to maintain
+- Need modular structure for Phase 3B/4 (34 weapons, shop, rounds)
+- Preparing for future features (multiplayer, menu system, audio)
+
+**Key Changes:**
+1. **File Structure Evolution** - Shows progression from prototype to production
+2. **2-Stage Refactoring** - Stage 1 (now), Stage 2 (before Phase 4)
+3. **Detailed Steps** - 8 steps with time estimates and validation criteria
+4. **Future-Ready** - Architecture supports multiplayer, menus, and audio
+
+---
+
+### Version 2.0 - January 2025
+**Initial Architecture Document**
+
+- Original design for Matter.js rewrite
+- Defined core principles and layers
+- Created implementation phases (1-4)
+- Established file structure vision
 
 ---
 
@@ -160,43 +196,166 @@ Matter.Events.on(engine, 'collisionStart', (event) => {
 
 ---
 
-## File Structure
+## File Structure Evolution
+
+### Current Structure (Prototype Phase)
+
+**Status:** Single-file prototype (prototype.html - 1,803 lines)
 
 ```
 destruction-zone-web/
-├── index.html                 # Main HTML
-├── css/
-│   ├── main.css              # Layout & screens
-│   ├── game.css              # Canvas & game UI
-│   └── ui.css                # Menus & HUD
-├── js/
-│   ├── main.js               # Game loop & initialization
-│   ├── lib/
-│   │   └── matter.min.js     # Matter.js physics engine
-│   ├── core/
-│   │   ├── physics.js        # Matter.js setup & world
-│   │   ├── renderer.js       # Canvas rendering
-│   │   └── state.js          # Game state management
-│   ├── entities/
-│   │   ├── Tank.js           # Tank entity (wraps Matter body)
-│   │   ├── Projectile.js     # Projectile entity
-│   │   └── Explosion.js      # Explosion effect
-│   ├── systems/
-│   │   ├── input.js          # Keyboard/input handling
-│   │   ├── weapons.js        # Weapon firing & logic
-│   │   ├── collision.js      # Collision handling
-│   │   ├── ai.js             # AI behavior
-│   │   └── shop.js           # Shop & upgrades
-│   ├── config/
-│   │   ├── game-config.js    # Game constants
-│   │   ├── tank-data.js      # Tank types & stats
-│   │   └── weapon-data.js    # Weapon definitions
-│   └── ui/
-│       ├── hud.js            # Heads-up display
-│       ├── menu.js           # Menu system
-│       └── scoreboard.js     # Scoring UI
-└── ARCHITECTURE.md           # This file
+├── prototype.html            # ⚠️ All-in-one prototype (needs refactoring)
+├── css/                      # ✅ CSS organized
+│   ├── main.css
+│   ├── game.css
+│   └── ui.css
+└── js/                       # 📁 Target structure (prepared but not used yet)
+    ├── main.js
+    ├── lib/
+    ├── core/
+    ├── entities/
+    ├── systems/
+    ├── config/
+    └── ui/
 ```
+
+**Issues:**
+- ⚠️ 1,803 lines in single file
+- ⚠️ Hard to maintain
+- ⚠️ Difficult to extend for Phase 3B/4
+- ⚠️ No separation of concerns
+
+---
+
+### Target Structure (Post-Refactoring)
+
+**Goal:** Modular, scalable architecture for future features
+
+#### Stage 1: Basic Modularization (Phase 3A → Phase 3B)
+
+```
+destruction-zone-web/
+├── index.html                      # Main HTML entry point
+├── css/
+│   ├── main.css                   # Global styles
+│   ├── game.css                   # In-game UI
+│   ├── menu.css                   # Menu screens ⭐ NEW
+│   └── ui.css                     # UI components
+└── js/
+    ├── main.js                    # Game initialization & loop
+    │
+    ├── lib/                       # External libraries
+    │   ├── matter.min.js          # Matter.js physics
+    │   └── pixi.min.js            # PixiJS rendering
+    │
+    ├── core/                      # Core game systems
+    │   ├── Game.js                # 🎮 Main game controller ⭐ NEW
+    │   ├── GameState.js           # 🎯 State machine (menu/game/shop) ⭐ NEW
+    │   ├── physics.js             # Matter.js world setup
+    │   ├── particles.js           # PixiJS particle system ⭐ NEW
+    │   └── renderer.js            # Canvas rendering ⭐ NEW
+    │
+    ├── entities/                  # Game objects
+    │   ├── Tank.js                # Tank class ⭐ NEW
+    │   └── Projectile.js          # Projectile class ⭐ NEW
+    │
+    ├── systems/                   # Game logic systems
+    │   ├── collision.js           # Collision handling ⭐ NEW
+    │   ├── input.js               # Keyboard/gamepad input ⭐ NEW
+    │   ├── ai.js                  # AI behavior ⭐ NEW
+    │   └── weapons.js             # Weapon firing logic
+    │
+    ├── config/                    # Configuration & data
+    │   ├── constants.js           # Game constants ⭐ NEW
+    │   ├── colors.js              # TRON color palette ⭐ NEW
+    │   ├── weapon-data.js         # Weapon definitions (existing)
+    │   └── tank-data.js           # Tank stats (existing)
+    │
+    └── ui/                        # User interface
+        └── hud.js                 # In-game HUD ⭐ NEW
+```
+
+**Benefits:**
+- ✅ Clear separation of concerns
+- ✅ Easy to find and fix bugs
+- ✅ Parallel development possible
+- ✅ Reusable modules
+- ✅ Ready for Phase 3B/4 expansion
+
+---
+
+#### Stage 2: Full Production Structure (Phase 4+)
+
+```
+destruction-zone-web/
+├── index.html
+├── css/
+│   ├── main.css
+│   ├── game.css
+│   ├── menu.css
+│   └── ui.css
+│
+└── js/
+    ├── main.js
+    │
+    ├── lib/
+    │   ├── matter.min.js
+    │   └── pixi.min.js
+    │
+    ├── core/
+    │   ├── Game.js                # Game controller
+    │   ├── GameState.js           # State machine
+    │   ├── AssetManager.js        # 📦 Asset loading ⭐ FUTURE
+    │   ├── AudioManager.js        # 🔊 Sound system ⭐ FUTURE
+    │   ├── physics.js
+    │   ├── particles.js
+    │   └── renderer.js
+    │
+    ├── entities/
+    │   ├── Tank.js
+    │   └── Projectile.js
+    │
+    ├── systems/
+    │   ├── collision.js
+    │   ├── input.js
+    │   ├── ai.js
+    │   ├── weapons.js
+    │   ├── round.js               # 🎲 Round management ⭐ FUTURE
+    │   └── shop.js                # 🛒 Shop logic ⭐ FUTURE
+    │
+    ├── network/                   # 🌐 Multiplayer ⭐ FUTURE
+    │   ├── NetworkManager.js      # Connection handling
+    │   ├── GameClient.js          # Client-side logic
+    │   ├── GameServer.js          # Server (Node.js)
+    │   └── protocol.js            # Message protocol
+    │
+    ├── config/
+    │   ├── constants.js
+    │   ├── colors.js
+    │   ├── weapon-data.js
+    │   └── tank-data.js
+    │
+    └── ui/
+        ├── screens/               # 🖼️ Full-screen UIs ⭐ FUTURE
+        │   ├── MenuScreen.js      # Main menu
+        │   ├── GameScreen.js      # In-game HUD
+        │   ├── ShopScreen.js      # Between-round shop
+        │   ├── SettingsScreen.js  # Settings menu
+        │   └── LobbyScreen.js     # Multiplayer lobby
+        ├── components/            # 🧩 Reusable components ⭐ FUTURE
+        │   ├── Button.js
+        │   ├── Modal.js
+        │   ├── Slider.js
+        │   └── TankSelector.js
+        └── hud.js
+```
+
+**Additional Benefits:**
+- ✅ Multi-screen support (menu, lobby, settings)
+- ✅ Multiplayer ready
+- ✅ Asset & audio management
+- ✅ Component-based UI
+- ✅ Fully scalable architecture
 
 ---
 
@@ -539,17 +698,448 @@ const walls = [
 
 ---
 
+## Refactoring Plan (Phase 3A → Phase 3B Transition)
+
+### Overview
+
+**Current State:** prototype.html (1,803 lines, 68KB)
+**Target State:** Modular architecture with ~15 files
+**Timeline:** 4-5 hours (2-stage approach)
+**Date:** October 29, 2025
+
+---
+
+### Stage 1: Core Refactoring (Now)
+
+**Goal:** Split prototype into maintainable modules while preserving all functionality
+
+**Estimated Time:** 4-5 hours
+
+#### Step 1: Configuration & Constants (30 min)
+
+**Files to Create:**
+- `js/config/constants.js` - Game constants
+- `js/config/colors.js` - TRON color palette
+
+**Content:**
+```javascript
+// js/config/constants.js
+export const COLLISION_CATEGORY = {
+    TANK: 0x0001,
+    PROJECTILE: 0x0002,
+    WALL: 0x0004
+};
+
+export const SAFE_ZONE_SPAWNS = [
+    { x: 66.5, y: 66.5 },      // Tank 1: Top-left
+    { x: 893.5, y: 653.5 },    // Tank 2: Bottom-right
+    { x: 893.5, y: 66.5 },     // Tank 3: Top-right
+    { x: 66.5, y: 653.5 },     // Tank 4: Bottom-left
+    { x: 479.5, y: 66.5 },     // Tank 5: Top-middle
+    { x: 479.5, y: 653.5 }     // Tank 6: Bottom-middle
+];
+
+// js/config/colors.js
+export const TRON_COLORS = [
+    '#00ffff',  // Tank 1: Cyan
+    '#ff6600',  // Tank 2: Orange
+    '#bb88ff',  // Tank 3: Light Purple
+    '#00ff88',  // Tank 4: Emerald Green
+    '#cccc00',  // Tank 5: Dark Yellow
+    '#ff0055'   // Tank 6: Red Pink
+];
+
+export const WALL_COLOR = '#88ddff';  // Bright sky blue
+export const GRID_COLOR = '#00ccff';  // Cyan grid
+```
+
+**Validation:** Import and verify constants work
+
+---
+
+#### Step 2: Particle System (30 min)
+
+**Files to Create:**
+- `js/core/particles.js` - Complete PixiJS particle system
+
+**Content:**
+- Particle class
+- createTankExplosionParticles()
+- createProjectileHitParticles()
+- updateParticles()
+- initPixiApp()
+
+**Validation:** Tank explosions and projectile hits show particles
+
+---
+
+#### Step 3: Entity Classes (45 min)
+
+**Files to Create:**
+- `js/entities/Tank.js` - Tank class with all methods
+- `js/entities/Projectile.js` - Projectile class
+
+**Content:**
+```javascript
+// js/entities/Tank.js
+import { TRON_COLORS } from '../config/colors.js';
+
+export default class Tank {
+    constructor(x, y, config) {
+        // All tank logic from prototype
+    }
+
+    update() { ... }
+    render(ctx) { ... }
+    destroy() { ... }
+    fire() { ... }
+}
+
+// js/entities/Projectile.js
+export default class Projectile {
+    constructor(type, x, y, angle, speed, ownerId) {
+        // All projectile logic
+    }
+
+    update(deltaTime) { ... }
+    render(ctx) { ... }
+}
+```
+
+**Validation:** Tanks move, fire, and render correctly
+
+---
+
+#### Step 4: Systems (60 min)
+
+**Files to Create:**
+- `js/systems/collision.js` - Collision handlers
+- `js/systems/input.js` - Keyboard controls
+- `js/systems/ai.js` - AI logic
+- `js/ui/hud.js` - UI updates
+
+**Content:**
+```javascript
+// js/systems/collision.js
+export function setupCollisionHandlers(engine, game) {
+    Matter.Events.on(engine, 'collisionStart', (event) => {
+        // All collision logic
+    });
+}
+
+export function handleTankCollision(bodyA, bodyB) { ... }
+export function handleProjectileHit(tankBody, projectileBody) { ... }
+export function handleProjectileWallHit(projectileBody) { ... }
+
+// js/systems/input.js
+export function setupKeyboardControls(tank) {
+    document.addEventListener('keydown', (e) => { ... });
+    document.addEventListener('keyup', (e) => { ... });
+}
+
+// js/systems/ai.js
+export function updateAI(tank, targets, deltaTime) {
+    // AI decision making
+}
+
+// js/ui/hud.js
+export function updateUI(tanks) {
+    tanks.forEach((tank, index) => {
+        // Update tank stat panels
+    });
+}
+```
+
+**Validation:** Collisions, input, AI, and UI all work
+
+---
+
+#### Step 5: Renderer (30 min)
+
+**Files to Create:**
+- `js/core/renderer.js` - Canvas rendering
+
+**Content:**
+```javascript
+// js/core/renderer.js
+export class Renderer {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+    }
+
+    render(game) {
+        // Clear
+        // Draw background
+        // Draw grid
+        // Draw walls
+        // Draw tanks
+        // Draw projectiles
+    }
+
+    drawBackground() { ... }
+    drawGrid() { ... }
+    drawWalls(walls) { ... }
+}
+```
+
+**Validation:** All rendering works
+
+---
+
+#### Step 6: Core Game Classes (45 min)
+
+**Files to Create:**
+- `js/core/Game.js` - Main game controller
+- `js/core/GameState.js` - State machine
+
+**Content:**
+```javascript
+// js/core/Game.js
+export class Game {
+    constructor() {
+        this.state = new GameState();
+        this.world = null;
+        this.engine = null;
+        this.tanks = [];
+        this.projectiles = [];
+        this.renderer = null;
+    }
+
+    async init() {
+        // Setup physics
+        // Create tanks
+        // Setup systems
+        // Setup renderer
+    }
+
+    update(deltaTime) {
+        // Update physics
+        // Update tanks
+        // Update projectiles
+        // Update AI
+        // Update particles
+    }
+
+    render() {
+        this.renderer.render(this);
+    }
+}
+
+// js/core/GameState.js
+export class GameState {
+    constructor() {
+        this.current = 'PLAYING';  // Simple for now
+        this.listeners = [];
+    }
+
+    changeState(newState, data = {}) {
+        this.current = newState;
+        this.notifyListeners(newState);
+    }
+
+    onStateChange(callback) {
+        this.listeners.push(callback);
+    }
+}
+```
+
+**Validation:** Game initializes and runs
+
+---
+
+#### Step 7: Main Entry Point (45 min)
+
+**Files to Create:**
+- `js/main.js` - Application entry
+- `index.html` - Updated HTML with module imports
+
+**Content:**
+```javascript
+// js/main.js
+import { Game } from './core/Game.js';
+
+// Initialize game
+const game = new Game();
+await game.init();
+
+// Game loop
+let lastTime = performance.now();
+
+function gameLoop() {
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    game.update(1/60);  // Fixed timestep
+    game.render();
+
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+```
+
+```html
+<!-- index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Destruction Zone</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/ui.css">
+</head>
+<body>
+    <!-- Game UI structure -->
+    <div id="gameContainer">
+        <!-- Tank stat panels -->
+        <!-- Canvas -->
+        <!-- PixiJS container -->
+    </div>
+
+    <!-- Load libraries -->
+    <script src="js/lib/matter.min.js"></script>
+    <script src="js/lib/pixi.min.js"></script>
+
+    <!-- Load game as module -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
+```
+
+**Validation:** Full game works from index.html
+
+---
+
+#### Step 8: Testing & Debugging (30-60 min)
+
+**Checklist:**
+- [ ] All 6 tanks spawn correctly
+- [ ] Player controls work (WASD, arrows, space, 1/2/3)
+- [ ] AI tanks move and fire
+- [ ] Tank-tank collisions work
+- [ ] Projectile-tank collisions work
+- [ ] Projectile-wall collisions work
+- [ ] Particle effects show on explosions
+- [ ] UI updates (health, energy, weapons, score)
+- [ ] TRON style rendering (tanks, walls, grid)
+- [ ] 60 FPS performance maintained
+
+---
+
+### Stage 2: Advanced Features (Later)
+
+**Goal:** Add systems for Phase 4+ features
+
+**Estimated Time:** 3-4 hours
+
+**When:** Before implementing Phase 4 content
+
+#### Additional Files:
+
+```
+js/core/
+  ├── AssetManager.js        # Image/sound loading
+  └── AudioManager.js        # Sound effects/music
+
+js/systems/
+  ├── round.js               # Round management
+  └── shop.js                # Shop logic
+
+js/network/                  # Multiplayer
+  ├── NetworkManager.js
+  ├── GameClient.js
+  ├── GameServer.js
+  └── protocol.js
+
+js/ui/screens/               # Multi-screen UI
+  ├── MenuScreen.js
+  ├── GameScreen.js
+  ├── ShopScreen.js
+  ├── SettingsScreen.js
+  └── LobbyScreen.js
+
+js/ui/components/            # Reusable UI
+  ├── Button.js
+  ├── Modal.js
+  ├── Slider.js
+  └── TankSelector.js
+```
+
+---
+
+### Benefits Summary
+
+#### Before Refactoring:
+- ⚠️ 1,803 lines in one file
+- ⚠️ Hard to navigate
+- ⚠️ Difficult to debug
+- ⚠️ Can't work in parallel
+- ⚠️ Limited extensibility
+
+#### After Stage 1:
+- ✅ ~15 focused modules (~100-200 lines each)
+- ✅ Clear file organization
+- ✅ Easy to find bugs
+- ✅ Parallel development possible
+- ✅ Ready for Phase 3B/4
+
+#### After Stage 2:
+- ✅ Full menu system
+- ✅ Multiplayer capable
+- ✅ Asset & audio management
+- ✅ Component-based UI
+- ✅ Production-ready architecture
+
+---
+
+### Migration Strategy
+
+**Backup Plan:**
+1. Keep `prototype.html` as reference
+2. Create new `index.html` with modular structure
+3. Test both versions during transition
+4. Once validated, archive prototype
+
+**Git Strategy:**
+```bash
+# Current state
+git add prototype.html
+git commit -m "feat: Phase 3A complete - TRON style + 6 tanks + UI"
+
+# Create refactoring branch
+git checkout -b refactor/modular-architecture
+
+# Work on refactoring
+# ... (create files, test)
+
+# Commit each step
+git commit -m "refactor: Step 1 - Extract config and constants"
+git commit -m "refactor: Step 2 - Extract particle system"
+# ...
+
+# When complete and tested
+git checkout main
+git merge refactor/modular-architecture
+```
+
+---
+
 ## Future Enhancements
 
 Once base game is stable:
-- [ ] Particle system for explosions
+- [x] Particle system for explosions ✅ (Phase 2)
 - [ ] Screen shake on impacts
 - [ ] Power-ups (health packs, ammo)
-- [ ] Terrain obstacles
+- [ ] Terrain obstacles (partial - walls done)
 - [ ] Team play mode
-- [ ] Multiplayer (WebRTC/WebSocket)
+- [ ] Multiplayer (WebRTC/WebSocket) - Architecture ready after Stage 2
 - [ ] Mobile controls
-- [ ] Sound effects & music
+- [ ] Sound effects & music - AudioManager in Stage 2
+- [ ] Menu system - Stage 2
+- [ ] Settings screen - Stage 2
+- [ ] Shop system - Phase 3B
 
 ---
 

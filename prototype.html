@@ -154,9 +154,10 @@
         }
 
         #gameCanvas {
-            border: 2px solid #00ffff;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            border: none;
+            box-shadow: none;
             background: #000011;
+            outline: none;
         }
 
         #debugInfo {
@@ -330,7 +331,11 @@
         const Vector = Matter.Vector;
 
         const engine = Engine.create({
-            gravity: { x: 0, y: 0 }  // Top-down, no gravity
+            gravity: { x: 0, y: 0 },  // Top-down, no gravity
+            // Increased iterations to reduce jittering when sharp vertices (tank front)
+            // contact walls perpendicularly. Default 6/4 caused visible vibration.
+            positionIterations: 10,   // Default 6 -> More accurate collision resolution
+            velocityIterations: 8     // Default 4 -> More stable velocity solving
         });
 
         const world = engine.world;
@@ -419,8 +424,9 @@
                 const particle = new Particle(x, y, vx, vy, {
                     lifetime: 0.5 + Math.random() * 0.7,
                     startColor: 0xffff00,  // 노란색
-                    endColor: 0xff0000,    // 빨간색
-                    damping: 0.95
+                    endColor: 0xffffff,    // 흰색
+                    damping: 0.95,
+                    radius: Math.random() < 0.3 ? 2 : 1  // 크기 2: 30%, 크기 1: 70%
                 });
 
                 particleContainer.addChild(particle);
@@ -452,6 +458,7 @@
             }
         }
 
+
         // 파티클 업데이트
         function updateParticles(deltaTime) {
             for (let i = activeParticles.length - 1; i >= 0; i--) {
@@ -480,10 +487,19 @@
         // Wall Generation System
         // ============================================
 
-        // Create boundary walls
+        // Create boundary walls (3px inward from canvas edge for visual margin)
+        //
+        // IMPORTANT: Physical boundary is intentionally 3px smaller than canvas
+        // Reason: Tank rendering uses stroke (lineWidth 3) and shadowBlur (20px)
+        //         which extend beyond the physical vertices. Without this margin,
+        //         tanks touching walls would be visually cut off at canvas edge.
+        // Visual solution: Keep physics 3px inward, render extends to canvas edge
+        // DO NOT REMOVE: This prevents visual clipping while maintaining physics accuracy
         const wallThickness = 50;
+        const visualMargin = 3;  // 3px inward from canvas edge
         const boundaryWalls = [
-            Bodies.rectangle(480, -25, 960, wallThickness, {
+            // Top wall: inner edge at y = 3 (instead of 0)
+            Bodies.rectangle(480, visualMargin - wallThickness/2, 960 + wallThickness * 2, wallThickness, {
                 isStatic: true,
                 label: 'wall',
                 collisionFilter: {
@@ -491,7 +507,8 @@
                     mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
                 }
             }),
-            Bodies.rectangle(480, 745, 960, wallThickness, {
+            // Bottom wall: inner edge at y = 717 (instead of 720)
+            Bodies.rectangle(480, 720 - visualMargin + wallThickness/2, 960 + wallThickness * 2, wallThickness, {
                 isStatic: true,
                 label: 'wall',
                 collisionFilter: {
@@ -499,7 +516,8 @@
                     mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
                 }
             }),
-            Bodies.rectangle(-25, 360, wallThickness, 720, {
+            // Left wall: inner edge at x = 3 (instead of 0)
+            Bodies.rectangle(visualMargin - wallThickness/2, 360, wallThickness, 720 + wallThickness * 2, {
                 isStatic: true,
                 label: 'wall',
                 collisionFilter: {
@@ -507,7 +525,8 @@
                     mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
                 }
             }),
-            Bodies.rectangle(985, 360, wallThickness, 720, {
+            // Right wall: inner edge at x = 957 (instead of 960)
+            Bodies.rectangle(960 - visualMargin + wallThickness/2, 360, wallThickness, 720 + wallThickness * 2, {
                 isStatic: true,
                 label: 'wall',
                 collisionFilter: {
@@ -659,7 +678,8 @@
                     friction: this.config.friction,
                     frictionAir: this.config.frictionAir,
                     frictionStatic: 1.0,
-                    restitution: 0.1,
+                    restitution: 0.0,  // No bounce - prevents unwanted sliding
+                    chamfer: { radius: 2 },  // Round corners slightly to reduce jitter on perpendicular wall collisions
                     label: 'tank',
                     collisionFilter: {
                         category: COLLISION_CATEGORY.TANK,
@@ -779,19 +799,15 @@
                 // Don't render if destroyed
                 if (!this.alive) return;
 
-                ctx.save();
-
                 const pos = this.body.position;
                 const angle = this.body.angle;
                 const size = this.config.size * 0.8;
 
+                ctx.save();
+
                 // Move to tank position and rotate
                 ctx.translate(pos.x, pos.y);
                 ctx.rotate(angle);
-
-                // Tank glow
-                ctx.shadowColor = this.config.color;
-                ctx.shadowBlur = 15;
 
                 // Draw tank body using Matter.js vertices (for perfect match)
                 // Convert world coordinates to body-local coordinates
@@ -808,21 +824,47 @@
                 }
                 ctx.closePath();
 
-                ctx.fillStyle = this.config.color;
+                // TRON style: Dark interior
+                ctx.fillStyle = '#0a0a0a';
                 ctx.fill();
-                ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+
+                // TRON style: Outer neon glow (player color)
+                // NOTE: lineWidth and shadowBlur extend beyond physics vertices
+                //       This is why visualMargin exists in boundary walls (see wall creation)
+                ctx.strokeStyle = this.config.color;
+                ctx.lineWidth = 3;  // Extends 1.5px each side of line
+                ctx.lineJoin = 'round';  // Round corners to prevent sharp miter spikes
+                ctx.shadowColor = this.config.color;
+                ctx.shadowBlur = 20;  // Main reason for visual margin
                 ctx.stroke();
 
-                // Tank details (cylinders)
-                ctx.shadowBlur = 0;
-                ctx.globalAlpha = 0.7;
-                const cylSize = size * 0.15;
-                const cylSpacing = size * 0.25;
-                ctx.fillRect(-size * 0.4, -cylSpacing, cylSize, cylSize);
-                ctx.fillRect(-size * 0.4, 0, cylSize, cylSize);
-                ctx.fillRect(-size * 0.4, cylSpacing, cylSize, cylSize);
-                ctx.globalAlpha = 1;
+                // Inner white core (bright center line)
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1;
+                ctx.lineJoin = 'round';  // Round corners
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 5;
+                ctx.stroke();
+
+                // Tank detail (single glowing neon accent point)
+                const accentSize = size * 0.2;
+                const accentX = -size * 0.4;
+                const accentY = -accentSize / 2;
+
+                // Outer neon glow (player color)
+                ctx.fillStyle = this.config.color;
+                ctx.shadowColor = this.config.color;
+                ctx.shadowBlur = 15;
+                ctx.fillRect(accentX, accentY, accentSize, accentSize);
+
+                // Inner white core (bright center)
+                ctx.fillStyle = '#ffffff';
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 8;
+                const coreSize = accentSize * 0.4;  // 40% of accent size
+                const coreX = accentX + (accentSize - coreSize) / 2;
+                const coreY = accentY + (accentSize - coreSize) / 2;
+                ctx.fillRect(coreX, coreY, coreSize, coreSize);
 
                 // Weapon indicator
                 ctx.strokeStyle = this.config.color;
@@ -1061,24 +1103,32 @@
             { x: 413 + 133/2, y: 587 + 133/2 }        // 6: Bottom-middle center
         ];
 
-        const playerTank = new Tank(SAFE_ZONE_SPAWNS[0].x, SAFE_ZONE_SPAWNS[0].y, {
-            size: 30,
-            thrustPower: 0.01,
-            rotationSpeed: 0.01,
-            color: '#00ffff'
-        });
-        playerTank.id = 'TANK 1';
+        // TRON style player colors
+        const TRON_COLORS = [
+            '#00ffff',  // Tank 1: Cyan (classic TRON blue)
+            '#ff6600',  // Tank 2: Orange (opposing team)
+            '#bb88ff',  // Tank 3: Light Purple
+            '#00ff88',  // Tank 4: Emerald Green
+            '#cccc00',  // Tank 5: Dark Yellow
+            '#ff0055'   // Tank 6: Red Pink
+        ];
 
-        const enemyTank = new Tank(SAFE_ZONE_SPAWNS[1].x, SAFE_ZONE_SPAWNS[1].y, {
-            size: 30,
-            thrustPower: 0.01,
-            rotationSpeed: 0.01,
-            color: '#ff00ff'
-        });
-        enemyTank.id = 'TANK 2';
+        // Create all 6 tanks
+        const tanks = [];
+        for (let i = 0; i < 6; i++) {
+            const tank = new Tank(SAFE_ZONE_SPAWNS[i].x, SAFE_ZONE_SPAWNS[i].y, {
+                size: 30,
+                thrustPower: 0.01,
+                rotationSpeed: 0.01,
+                color: TRON_COLORS[i]
+            });
+            tank.id = `TANK ${i + 1}`;
+            tanks.push(tank);
+        }
 
-        // Tank array for UI updates (max 6 tanks)
-        const tanks = [playerTank, enemyTank, null, null, null, null];
+        // Player tank reference (Tank 1)
+        const playerTank = tanks[0];
+        const enemyTank = tanks[1];
 
         const projectiles = [];
         const keys = {};
@@ -1537,41 +1587,72 @@
         // Renderer
         // ============================================
         function render() {
-            // Clear canvas - Ground base color
-            ctx.fillStyle = '#2a2a1a';  // Dark brownish ground
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // TRON style glossy surface with large radial gradient
+            const gridSize = 60;  // Grid spacing
+            const gridColor = '#00ccff';  // Cyan neon
+            const gridAlpha = 0.3;
+            const glowIntensity = 15;
+
+            ctx.save();
+
+            // Large radial gradient for glossy floor effect (center brighter)
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const gradientRadius = Math.max(canvas.width, canvas.height) * 0.7;
+
+            const floorGradient = ctx.createRadialGradient(
+                centerX, centerY, 0,
+                centerX, centerY, gradientRadius
+            );
+            floorGradient.addColorStop(0, '#1a1a1a');    // Center brighter
+            floorGradient.addColorStop(0.5, '#121212');  // Mid tone
+            floorGradient.addColorStop(1, '#080808');    // Edges darker
+
+            ctx.fillStyle = floorGradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw ground texture pattern (randomized but consistent)
-            for (let i = 0; i < 300; i++) {
-                // Use seed-based randomization for consistency
-                const seed1 = (i * 73 + 17) % 997;
-                const seed2 = (i * 131 + 23) % 991;
-                const seed3 = (i * 197 + 31) % 983;
+            ctx.restore();
+            ctx.save();
 
-                const x = (seed1 * 73) % canvas.width;
-                const y = (seed2 * 131) % canvas.height;
-                const size = 1 + (seed3 % 4);
-                const brightness = 60 + (seed3 % 40);
+            // Draw grid lines with glow effect
+            ctx.strokeStyle = `rgba(0, 204, 255, ${gridAlpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.shadowColor = gridColor;
+            ctx.shadowBlur = glowIntensity;
 
-                ctx.fillStyle = `rgba(${brightness}, ${brightness}, ${brightness * 0.6}, 0.4)`;
-                ctx.fillRect(x, y, size, size);
-            }
-
-            // Draw subtle grid (ground tiles)
-            ctx.strokeStyle = 'rgba(60, 60, 40, 0.15)';
-            ctx.lineWidth = 1;
-            for (let x = 0; x < canvas.width; x += 50) {
+            // Vertical lines (inner grid only, skip edges)
+            for (let x = gridSize; x < canvas.width; x += gridSize) {
                 ctx.beginPath();
                 ctx.moveTo(x, 0);
                 ctx.lineTo(x, canvas.height);
                 ctx.stroke();
             }
-            for (let y = 0; y < canvas.height; y += 50) {
+
+            // Horizontal lines (inner grid only, skip edges)
+            for (let y = gridSize; y < canvas.height; y += gridSize) {
                 ctx.beginPath();
                 ctx.moveTo(0, y);
                 ctx.lineTo(canvas.width, y);
                 ctx.stroke();
             }
+
+            // Draw brighter intersection points for extra glow (inner grid only)
+            ctx.fillStyle = `rgba(0, 204, 255, ${gridAlpha * 0.5})`;
+            ctx.shadowBlur = glowIntensity * 1.5;
+            for (let x = gridSize; x < canvas.width; x += gridSize) {
+                for (let y = gridSize; y < canvas.height; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Outer boundary removed - handled by CSS border on canvas element
+
+            ctx.restore();
 
             // DEBUG: Grid and safe zone visualization (disabled)
             // Uncomment to enable debug visualization
@@ -1624,39 +1705,72 @@
             */
 
             // Draw walls
-            // 1. Boundary walls (red outline)
-            ctx.strokeStyle = '#ff4444';
-            ctx.lineWidth = 3;
-            ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
-            // 2. Obstacle walls (white outline, dark fill)
+            // Obstacle walls (TRON style)
             obstacleWalls.forEach(wall => {
                 const pos = wall.position;
                 const vertices = wall.vertices;
 
                 ctx.save();
 
-                // Fill
-                ctx.fillStyle = '#3a3a3a';
+                // Shrink vertices 3px inward (same as tanks) to prevent visual clipping
+                const shrinkAmount = 3;
+                const visualVertices = [];
+                for (let i = 0; i < vertices.length; i++) {
+                    const offset = Vector.sub(vertices[i], pos);
+                    const length = Vector.magnitude(offset);
+                    const shrinkRatio = Math.max(0, (length - shrinkAmount) / length);
+                    const shrunkenOffset = Vector.mult(offset, shrinkRatio);
+                    const visualVertex = Vector.add(pos, shrunkenOffset);
+                    visualVertices.push(visualVertex);
+                }
+
+                // Draw using shrunken vertices
                 ctx.beginPath();
-                ctx.moveTo(vertices[0].x, vertices[0].y);
-                for (let i = 1; i < vertices.length; i++) {
-                    ctx.lineTo(vertices[i].x, vertices[i].y);
+                ctx.moveTo(visualVertices[0].x, visualVertices[0].y);
+                for (let i = 1; i < visualVertices.length; i++) {
+                    ctx.lineTo(visualVertices[i].x, visualVertices[i].y);
                 }
                 ctx.closePath();
+
+                // TRON style: Dark interior
+                ctx.fillStyle = '#0a0a0a';
                 ctx.fill();
 
-                // Outline (white like original game)
+                // TRON style: Outer bright neon glow
+                ctx.strokeStyle = '#88ddff';
+                ctx.lineWidth = 3;
+                ctx.lineJoin = 'round';  // Round corners to match tank style
+                ctx.shadowColor = '#88ddff';
+                ctx.shadowBlur = 15;
+                ctx.stroke();
+
+                // TRON style: Inner white core (bright center line)
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 1;
+                ctx.lineJoin = 'round';  // Round corners
+                ctx.shadowColor = '#ffffff';
+                ctx.shadowBlur = 5;
                 ctx.stroke();
 
                 ctx.restore();
             });
 
-            // Draw tanks
-            playerTank.render(ctx);
-            enemyTank.render(ctx);
+            // Draw canvas boundary BEFORE tanks (so tanks render on top)
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 102, 136, 0.6)';  // Darker cyan
+            ctx.lineWidth = 2;
+            ctx.shadowColor = 'rgba(0, 102, 136, 0.3)';
+            ctx.shadowBlur = 8;
+            ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+            ctx.restore();
+
+            // Draw all tanks
+            tanks.forEach(tank => {
+                if (tank && tank.alive) {
+                    tank.render(ctx);
+                }
+            });
 
             // Draw projectiles
             for (const projectile of projectiles) {
@@ -1666,6 +1780,7 @@
             }
 
             // Hit effects and explosions now rendered by PixiJS (in particleContainer)
+
         }
 
         // ============================================

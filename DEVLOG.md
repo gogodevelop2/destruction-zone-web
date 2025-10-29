@@ -2156,3 +2156,446 @@ function isCellSafe(cellX, cellY, cellW, cellH) {
 - [PIXI.Graphics](https://pixijs.download/release/docs/PIXI.Graphics.html)
 - [PIXI.Application Options](https://pixijs.download/release/docs/PIXI.Application.html)
 - [PIXI.filters.BlurFilter](https://pixijs.download/release/docs/PIXI.filters.BlurFilter.html)
+
+---
+---
+
+## 2025년 10월 29일 - TRON 스타일 적용 및 렌더링 최적화
+
+### 🎯 목표
+1. TRON 영화 스타일의 네온 그래픽 적용
+2. 탱크/벽 디자인 개선
+3. 물리 경계와 시각적 렌더링 분리
+4. Matter.js 충돌 안정성 개선
+
+---
+
+## 📋 진행 사항
+
+### 1. TRON 스타일 디자인 시스템 구축
+
+#### 1.1 핵심 디자인 원칙
+- **어두운 내부 + 밝은 네온 테두리 + 흰색 코어**
+- 3단계 레이어 렌더링:
+  1. 검은 내부 (`#0a0a0a`)
+  2. 컬러 네온 글로우 (shadowBlur 15-20)
+  3. 흰색 중심선 (shadowBlur 5)
+
+#### 1.2 탱크 TRON 스타일 적용
+
+**렌더링 순서:**
+```javascript
+// 1. Dark interior
+ctx.fillStyle = '#0a0a0a';
+ctx.fill();
+
+// 2. Outer neon glow (player color)
+ctx.strokeStyle = this.config.color;
+ctx.lineWidth = 3;
+ctx.lineJoin = 'round';  // 모서리 둥글게
+ctx.shadowColor = this.config.color;
+ctx.shadowBlur = 20;
+ctx.stroke();
+
+// 3. Inner white core
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 1;
+ctx.lineJoin = 'round';
+ctx.shadowColor = '#ffffff';
+ctx.shadowBlur = 5;
+ctx.stroke();
+```
+
+**주요 개선:**
+- `lineJoin = 'round'` 적용으로 뾰족한 miter 방지
+- 탱크별 고유 네온 컬러 (청록, 분홍, 노랑 등)
+- 흰색 코어로 명확한 윤곽선
+
+#### 1.3 벽 TRON 스타일 적용
+
+장애물 벽(obstacle walls)도 동일한 스타일 적용:
+```javascript
+// Dark interior
+ctx.fillStyle = '#0a0a0a';
+
+// Sky blue neon glow
+ctx.strokeStyle = '#88ddff';
+ctx.lineWidth = 3;
+ctx.lineJoin = 'round';
+ctx.shadowBlur = 15;
+
+// White core
+ctx.strokeStyle = '#ffffff';
+ctx.lineWidth = 1;
+ctx.lineJoin = 'round';
+ctx.shadowBlur = 5;
+```
+
+---
+
+### 2. 물리 vs 시각 분리 시스템
+
+#### 2.1 문제 인식
+
+**핵심 문제:**
+- 탱크의 **물리 꼭지점**과 **시각적 렌더링**이 동일
+- stroke (lineWidth 3) + shadowBlur (20px)가 물리 경계 밖으로 확장
+- 탱크가 벽에 닿으면 시각적으로 캔버스 밖으로 잘림
+
+**디버깅 과정:**
+1. 탱크 물리 꼭지점 시각화 (녹색 점 1px)
+2. 물리 경계 시각화 (마젠타 박스)
+3. 캔버스 경계 시각화 (노란 점선)
+4. Boundary walls 위치 출력 (min/max 좌표)
+
+**발견:**
+- Boundary walls 내부 면: 정확히 (0, 0, 960, 720) ✓
+- 탱크 물리 충돌: 정확함 ✓
+- 문제: shadowBlur가 경계 밖으로 나감 ✗
+
+#### 2.2 해결책 1: 물리 경계 축소
+
+**Boundary walls를 3px 안쪽으로 이동:**
+```javascript
+const visualMargin = 3;  // 3px inward from canvas edge
+
+// Top wall: inner edge at y = 3 (instead of 0)
+Bodies.rectangle(480, visualMargin - wallThickness/2, ...);
+
+// Bottom wall: inner edge at y = 717 (instead of 720)
+Bodies.rectangle(480, 720 - visualMargin + wallThickness/2, ...);
+
+// Left wall: inner edge at x = 3 (instead of 0)
+Bodies.rectangle(visualMargin - wallThickness/2, 360, ...);
+
+// Right wall: inner edge at x = 957 (instead of 960)
+Bodies.rectangle(960 - visualMargin + wallThickness/2, 360, ...);
+```
+
+**주석 추가 (리팩토링 보호):**
+```javascript
+// IMPORTANT: Physical boundary is intentionally 3px smaller than canvas
+// Reason: Tank rendering uses stroke (lineWidth 3) and shadowBlur (20px)
+//         which extend beyond the physical vertices. Without this margin,
+//         tanks touching walls would be visually cut off at canvas edge.
+// Visual solution: Keep physics 3px inward, render extends to canvas edge
+// DO NOT REMOVE: This prevents visual clipping while maintaining physics accuracy
+```
+
+#### 2.3 해결책 2: 랜덤 벽도 동일하게 처리
+
+**Obstacle walls 렌더링 시 3px 축소:**
+```javascript
+// Shrink vertices 3px inward (same as tanks)
+const shrinkAmount = 3;
+const visualVertices = [];
+for (let i = 0; i < vertices.length; i++) {
+    const offset = Vector.sub(vertices[i], pos);
+    const length = Vector.magnitude(offset);
+    const shrinkRatio = Math.max(0, (length - shrinkAmount) / length);
+    const shrunkenOffset = Vector.mult(offset, shrinkRatio);
+    const visualVertex = Vector.add(pos, shrunkenOffset);
+    visualVertices.push(visualVertex);
+}
+```
+
+**이점:**
+- 물리 충돌: 정확함 유지
+- 시각 렌더링: shadowBlur가 물리 경계 안에 들어옴
+- 탱크가 벽에 닿아도 잘리지 않음
+
+---
+
+### 3. Matter.js 충돌 안정성 개선
+
+#### 3.1 문제: 탱크 진동 (Jittering)
+
+**증상:**
+- 탱크가 벽에 수직으로 닿으면 **진동** 발생
+- 특히 앞쪽 뾰족한 꼭지점에서 심함
+- 뒤쪽 꼭지점(선분)은 안정적
+
+**원인 분석:**
+- 앞 꼭지점: **단일 점** 충돌 → 불안정
+- 뒤 꼭지점: **두 점(선분)** 충돌 → 안정
+- Matter.js의 충돌 해결이 단일 점에서 떨림
+
+#### 3.2 해결책
+
+**1단계: Engine iterations 증가**
+```javascript
+const engine = Engine.create({
+    gravity: { x: 0, y: 0 },
+    // Increased iterations to reduce jittering
+    positionIterations: 10,   // Default 6 → 10
+    velocityIterations: 8     // Default 4 → 8
+});
+```
+
+**2단계: Restitution 0으로**
+```javascript
+restitution: 0.0,  // No bounce - prevents unwanted sliding
+```
+
+**3단계: Chamfer 추가**
+```javascript
+chamfer: { radius: 2 },  // Round corners slightly
+```
+
+**결과:**
+- 진동 속도 감소 (완전 제거는 아님)
+- 게임 플레이에 큰 지장 없는 수준
+- 리팩토링 시 추가 최적화 가능
+
+---
+
+### 4. Canvas 2D 렌더링 세부 조정
+
+#### 4.1 lineJoin 속성
+
+**문제:**
+- 기본 `lineJoin = 'miter'`는 뾰족한 각도에서 spike 생성
+- 앞 꼭지점의 stroke가 물리 경계보다 더 앞으로 튀어나감
+
+**해결:**
+```javascript
+ctx.lineJoin = 'round';  // Miter → Round
+```
+
+**효과:**
+- 모서리가 둥글게 처리
+- Stroke가 예측 가능한 범위에 머무름
+- TRON 스타일에도 더 어울림
+
+#### 4.2 탱크 폭발 파티클 조정
+
+**파티클 크기 믹스:**
+```javascript
+// 20% size 2, 80% size 1
+radius: Math.random() < 0.2 ? 2 : 1
+```
+
+**색상 변경:**
+```javascript
+startColor: 0xffff00,  // Yellow
+endColor: 0xffffff,    // White (was red)
+```
+
+**이유:**
+- 더 밝고 깔끔한 느낌
+- TRON 스타일과 조화
+
+---
+
+### 5. PixiJS 발사체 전환 계획 수립
+
+#### 5.1 배경
+
+**현재 상황:**
+- 발사체: Canvas 2D 렌더링 (shadowBlur 사용)
+- 파티클: PixiJS 렌더링 (WebGL)
+- 문제: 100-200개 발사체 동시 처리 시 성능 저하
+
+**결정:** 리팩토링 **전에** PixiJS 전환
+
+**이유:**
+- 렌더링 시스템이 전체 아키텍처에 영향
+- Canvas → PixiJS → 리팩토링 (2번 작업)보다
+- PixiJS → 리팩토링 (1번 작업)이 효율적
+
+#### 5.2 전환 계획 문서 작성
+
+**파일:** `PIXI_PROJECTILE_MIGRATION.md`
+
+**Phase 구조:**
+- **Phase 0**: 사전 조사 (파티클 시스템 분석)
+- **Phase 1**: PixiJS 렌더링 추가 (기존과 병행)
+  - `projectileContainer` 생성
+  - `createProjectileGraphics()` 구현
+  - A/B 테스트 플래그 (`usePixiRendering`)
+- **Phase 2**: 성능 테스트 및 검증
+  - Canvas vs PixiJS FPS 비교
+  - 비주얼 검증
+- **Phase 3**: Canvas 렌더링 제거
+  - 플래그 제거
+  - 코드 정리
+- **Phase 4**: 리팩토링 준비
+  - ProjectileRenderer 객체 분리
+  - 주석 추가
+
+**핵심 구조:**
+```javascript
+pixiApp (PIXI.Application)
+├── particleContainer (Container) - 파티클용
+└── projectileContainer (Container) - 발사체용 (새로 추가)
+    └── Projectile Graphics 객체들
+```
+
+---
+
+### 6. 디버깅 도구 구축
+
+#### 6.1 경계 시각화
+
+**추가된 디버그 렌더링:**
+1. Canvas dimension display (노란 텍스트)
+2. Boundary walls positions (min/max 좌표)
+3. Physical boundary line (노란 점선)
+4. Canvas rendering area (청록 선)
+5. Tank physics bounds (마젠타 박스)
+6. Tank vertices (녹색 점 1px)
+
+**활용:**
+- 물리 vs 시각 불일치 진단
+- 충돌 문제 디버깅
+- 렌더링 레이어 순서 확인
+
+#### 6.2 렌더링 순서
+
+**최종 레이어 순서 (위에서 아래):**
+```
+┌─ Debug text (canvas dimension, etc)
+├─ Projectiles (Canvas 2D)
+├─ Tanks (Canvas 2D)
+├─ Debug lines (boundaries, vertices)
+├─ Obstacle walls (Canvas 2D)
+└─ Background (Canvas 2D)
+
+위에 오버레이:
+└─ Particles & Effects (PixiJS WebGL)
+```
+
+---
+
+## 🔧 기술적 하이라이트
+
+### Canvas lineJoin 속성
+```javascript
+// Miter (default): 뾰족한 spike
+ctx.lineJoin = 'miter';
+
+// Round: 둥근 모서리 ✓
+ctx.lineJoin = 'round';
+
+// Bevel: 잘린 모서리
+ctx.lineJoin = 'bevel';
+```
+
+### Matter.js 충돌 정확도
+```javascript
+// 기본값: 빠르지만 덜 정확
+positionIterations: 6,
+velocityIterations: 4
+
+// 개선: 느리지만 더 정확 ✓
+positionIterations: 10,  // +67%
+velocityIterations: 8    // +100%
+```
+
+### 물리 vs 시각 분리 패턴
+```javascript
+// Physics: Full size for collision
+this.body = Bodies.fromVertices(x, y, vertices, ...);
+
+// Visuals: Shrunken for aesthetics
+const visualVertices = shrinkVertices(vertices, 3);
+renderPolygon(visualVertices);
+```
+
+---
+
+## 📊 통계
+
+**작업 시간**: 약 4시간
+- TRON 스타일 적용: 1시간
+- 물리/시각 분리 디버깅: 2시간
+- 충돌 안정성 개선: 0.5시간
+- 문서화 (migration plan): 0.5시간
+
+**코드 라인 수**:
+- prototype.html: 1,523줄 → 1,803줄 (+280줄)
+- 추가된 기능:
+  - TRON 스타일 렌더링: 80줄
+  - 물리 경계 조정: 40줄
+  - 벽 렌더링 축소 로직: 30줄
+  - 디버그 시각화: 50줄
+  - 주석 및 문서화: 80줄
+
+**새 파일**:
+- PIXI_PROJECTILE_MIGRATION.md: 전체 마이그레이션 계획
+
+**커밋**: (예정)
+- feat: Add TRON style visuals and physics-visual separation
+- docs: Add PixiJS projectile migration plan
+
+---
+
+## ✅ 완료된 작업
+
+1. ✅ TRON 스타일 디자인 시스템 구축
+2. ✅ 탱크 TRON 스타일 렌더링
+3. ✅ 벽 TRON 스타일 렌더링
+4. ✅ 물리 경계 3px 축소 (visualMargin)
+5. ✅ 벽 렌더링 3px 축소 (shrinkVertices)
+6. ✅ lineJoin = 'round' 적용
+7. ✅ Matter.js iterations 증가 (jitter 감소)
+8. ✅ 탱크 폭발 파티클 조정 (크기, 색상)
+9. ✅ PixiJS 발사체 마이그레이션 계획 수립
+10. ✅ 디버그 시각화 도구 구축
+11. ✅ 주요 코드에 주석 추가 (리팩토링 보호)
+
+---
+
+## 🎯 결론
+
+**TRON 스타일 및 렌더링 최적화 완성!** ✅
+
+**핵심 성과:**
+- 시각적 품질 대폭 향상 (네온 그래픽)
+- 물리와 시각을 분리하여 정확도 + 미학 달성
+- 충돌 안정성 개선 (진동 감소)
+- 리팩토링을 위한 명확한 문서화
+
+**핵심 설계 결정:**
+1. **3px visualMargin**: 물리 정확도 유지하며 시각적 잘림 방지
+2. **lineJoin = 'round'**: Miter spike 제거
+3. **positionIterations = 10**: 충돌 안정성 향상
+4. **PixiJS 전환 우선**: 리팩토링 전 렌더링 시스템 확정
+
+**다음 단계:**
+- Phase 0: PixiJS 마이그레이션 사전 조사
+- Phase 1: PixiJS 발사체 렌더링 구현
+- 성능 테스트 및 비교
+
+---
+
+## 💡 배운 점
+
+### 1. 물리와 시각의 분리
+- 게임에서 "보이는 것"과 "충돌하는 것"은 다를 수 있음
+- 미학을 위해 시각적 요소를 조정하되, 물리는 정확하게 유지
+- 3px 같은 작은 마진도 큰 차이를 만듦
+
+### 2. Canvas stroke의 함정
+- `stroke()는 선의 중심에서 양쪽으로 확장
+- `lineJoin`이 예상치 못한 spike 생성 가능
+- `shadowBlur`는 물리 경계를 크게 넘어감
+
+### 3. Matter.js 충돌 해결
+- 단일 점 충돌은 불안정함
+- Iterations 증가로 정확도 향상 (성능 trade-off)
+- Chamfer로 모서리 둥글게 하면 안정성 향상
+
+### 4. 문서화의 중요성
+- 복잡한 시스템일수록 주석 필수
+- 리팩토링 시 "왜 이렇게 했는지" 명확히 기록
+- 마이그레이션 계획은 별도 문서로 관리
+
+---
+
+## 📝 참고 자료
+
+- [Canvas lineJoin](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/lineJoin)
+- [Matter.js Engine Options](https://brm.io/matter-js/docs/classes/Engine.html#property_positionIterations)
+- [TRON Legacy Design](https://www.artofvfx.com/tron-legacy/) - Visual inspiration
+- PIXI_PROJECTILE_MIGRATION.md - Projectile 전환 계획

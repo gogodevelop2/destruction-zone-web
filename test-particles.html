@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Particle System Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #000011;
+            color: #00ffff;
+            font-family: 'Courier New', monospace;
+        }
+        #pixiContainer {
+            position: relative;
+            width: 960px;
+            height: 720px;
+            background: #001122;
+            margin: 20px auto;
+            border: 2px solid #00ffff;
+        }
+        #controls {
+            text-align: center;
+            margin: 20px;
+        }
+        button {
+            background: #00ffff;
+            color: #000011;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #00ff88;
+        }
+        #info {
+            text-align: center;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">🎆 Particle System Test</h1>
+
+    <div id="controls">
+        <button onclick="testTankExplosion()">Tank Explosion</button>
+        <button onclick="testProjectileHit()">Projectile Hit</button>
+        <button onclick="testRapidFire()">Rapid Fire (10x)</button>
+    </div>
+
+    <div id="pixiContainer"></div>
+
+    <div id="info">
+        <p>Active Particles: <span id="particleCount">0</span></p>
+        <p>Click anywhere on the canvas to create particles!</p>
+    </div>
+
+    <!-- PixiJS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+
+    <!-- Particle System Module -->
+    <script type="module">
+        import {
+            initPixiJS,
+            createTankExplosionParticles,
+            createProjectileHitParticles,
+            updateParticles,
+            getActiveParticleCount
+        } from './js/core/particles.js';
+
+        // Initialize PixiJS
+        const app = initPixiJS(960, 720);
+
+        // Make functions global for button onclick
+        window.testTankExplosion = function() {
+            const x = 480;
+            const y = 360;
+            createTankExplosionParticles(x, y);
+        };
+
+        window.testProjectileHit = function() {
+            const x = Math.random() * 960;
+            const y = Math.random() * 720;
+            createProjectileHitParticles(x, y);
+        };
+
+        window.testRapidFire = function() {
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * 960;
+                    const y = Math.random() * 720;
+                    createProjectileHitParticles(x, y);
+                }, i * 100);
+            }
+        };
+
+        // Click to create particles
+        app.view.addEventListener('click', (e) => {
+            const rect = app.view.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (Math.random() > 0.5) {
+                createTankExplosionParticles(x, y);
+            } else {
+                createProjectileHitParticles(x, y);
+            }
+        });
+
+        // Update loop
+        let lastTime = performance.now();
+        function gameLoop(currentTime) {
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            // Update particles
+            updateParticles(deltaTime);
+
+            // Update particle count display
+            document.getElementById('particleCount').textContent = getActiveParticleCount();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop(performance.now());
+
+        console.log('✅ Particle system test initialized');
+    </script>
+</body>
+</html>

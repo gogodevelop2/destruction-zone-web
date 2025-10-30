@@ -1014,6 +1014,26 @@ PixiJS (독립 효과)
   └─→ ExplosionRing (탱크 폭발 링)
 ```
 
+### 탱크 구성 (6대)
+```
+Tank 1 (좌상단, #00ffff Cyan):
+  - 플레이어 조작 (Arrow Keys + Space)
+  - HP: 100, Weapon: MISSILE
+
+Tank 2-6 (AI 제어):
+  - Tank 2 (우하단, #ff6600 Orange) - AI
+  - Tank 3 (우상단, #bb88ff Light Purple) - AI
+  - Tank 4 (좌하단, #00ff88 Emerald Green) - AI
+  - Tank 5 (상단 중앙, #cccc00 Dark Yellow) - AI
+  - Tank 6 (하단 중앙, #ff0055 Red Pink) - AI
+  - 모든 AI는 플레이어를 추적하고 공격
+
+AI 행동:
+  - 목표 추적 (회전)
+  - 거리 유지 (150-200px)
+  - 조준 완료 시 발사 (1.5초 쿨다운)
+```
+
 ---
 
 ## 통계
@@ -1073,9 +1093,9 @@ Total:                    6시간 25분
 - 현재: MISSILE, LASER, DOUBLE_MISSILE (3종)
 - 목표: 34종 무기 구현 (`WEAPONS.md` 참조)
 
-### 우선순위 3: 게임 모드
-- 현재: 2 탱크 (플레이어 1 + AI 1)
-- 목표: 6 탱크 동시 플레이
+### 우선순위 3: 멀티플레이어 지원
+- 현재: 6 탱크 (플레이어 1 + AI 5) ✅
+- 목표: 로컬 멀티플레이어 (2-6 플레이어 동시 조작)
 
 ### 우선순위 4: 최적화
 - PixiJS 파티클 풀링

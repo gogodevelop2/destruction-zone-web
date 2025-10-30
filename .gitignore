@@ -1,0 +1,22 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (future)
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Build (future)
+dist/
+build/
+
+# Temporary
+*.tmp
+*.temp

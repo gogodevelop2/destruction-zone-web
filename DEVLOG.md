@@ -16,6 +16,9 @@
 ### 게임 요소
 - **[비주얼 디자인](./docs/devlogs/visual-design.md)** - TRON 스타일, visualMargin, 네온 효과
 
+### 개발 과정
+- **[개발 여정](./docs/devlogs/development-journey.md)** - DOS 포팅 → 하이브리드 실패 → Matter.js 재시작
+
 ### 참고 문서
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - 전체 시스템 아키텍처
 - **[WEAPONS.md](./WEAPONS.md)** - 무기 시스템 명세 (34종)

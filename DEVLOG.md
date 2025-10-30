@@ -33,6 +33,20 @@
 
 ### 2025년 10월
 
+#### 10월 30일 - GitHub Pages 공개 배포 ✅
+**프로토타입 공개**
+- GitHub 저장소 생성: https://github.com/gogodevelop2/destruction-zone-web
+- GitHub Pages 배포: https://gogodevelop2.github.io/destruction-zone-web/
+- `gh-pages` 브랜치: 배포용 (index.html만)
+- `matter-js-rewrite` 브랜치: 개발용 (전체 소스)
+
+**배포 구조:**
+- CDN 기반 (Matter.js, PixiJS)
+- 단일 HTML 파일 배포
+- 외부 테스트 가능
+
+---
+
 #### 10월 30일 - PixiJS 발사체 전환 완료 ✅
 **4단계 마이그레이션 성공**
 - Phase 1: PixiJS 추가 (A/B 테스트)

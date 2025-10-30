@@ -7,12 +7,19 @@
 ## 2025년 10월
 
 ### 2025-10-30
+- **deploy**: GitHub Pages 공개 배포 (c0f7f26)
+  - 저장소: https://github.com/gogodevelop2/destruction-zone-web
+  - 데모: https://gogodevelop2.github.io/destruction-zone-web/
+  - gh-pages 브랜치 생성
+- **fix**: Matter.js CDN 경로 수정 (cf9df94)
+- **chore**: DOS 원본 파일 폴더 정리 (a4b26af)
+- **docs**: 완료된 마이그레이션 계획 아카이브 이동 (4793bf1)
+- **chore**: 구 코드 정리 및 개발 여정 보존 (8acc631)
+- **docs**: 개발로그 주제별 재구조화 (6bb218a)
 - **feat**: PixiJS 발사체 전환 완료 (3d93927)
   - Canvas 2D → PixiJS WebGL 완전 마이그레이션
   - ProjectileRenderer 객체 생성
   - 100-200개 발사체 동시 처리 준비
-- **docs**: DEVLOG 업데이트 (1ee6381)
-- **docs**: 개발로그 주제별 재구조화
 
 ### 2025-10-29
 - **feat**: TRON 스타일 + visualMargin 적용 (ce1927d)

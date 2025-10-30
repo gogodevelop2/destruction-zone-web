@@ -17,6 +17,7 @@ import { setupCollisionHandlers } from '../systems/collision.js';
 import { setupKeyboardControls, handleInput, fireProjectile } from '../systems/input.js';
 import { initAI, updateAI } from '../systems/ai.js';
 import { updateUI } from '../ui/hud.js';
+import WallGenerator from '../systems/wallGenerator.js';
 
 /**
  * Main Game class - Coordinates all game systems
@@ -167,31 +168,34 @@ export default class Game {
     }
 
     /**
-     * Create obstacle walls in the arena
+     * Create obstacle walls in the arena using procedural generation
      */
     createObstacleWalls() {
-        const { Bodies, World } = this.Matter;
+        const { World } = this.Matter;
 
-        // Center obstacles
-        const obstacles = [
-            { x: 480, y: 360, width: 80, height: 80 }  // Center square
-        ];
+        // Get spawn positions to avoid (safe zones)
+        const spawnPoints = this.gameMode.getSpawnPositions();
 
-        obstacles.forEach(({ x, y, width, height }) => {
-            const wall = Bodies.rectangle(x, y, width, height, {
-                isStatic: true,
-                label: 'obstacle_wall',
-                collisionFilter: {
-                    category: COLLISION_CATEGORY.WALL,
-                    mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
-                },
-                friction: 0.9,
-                restitution: 0.1
-            });
+        // Random difficulty selection (core game concept)
+        const difficulties = ['easy', 'medium', 'hard'];
+        const randomDifficulty = difficulties[Math.floor(Math.random() * 3)];
 
-            this.obstacleWalls.push(wall);
-            World.add(this.world, wall);
+        console.log(`🎲 Random Difficulty: ${randomDifficulty.toUpperCase()}`);
+
+        // Create wall generator with random configuration
+        const wallGenerator = new WallGenerator(this.Matter, {
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
+            difficulty: randomDifficulty,  // Random: 'easy', 'medium', or 'hard'
+            seed: Date.now()               // Use timestamp for random maps
         });
+
+        // Generate walls (includes validation and collision filtering)
+        const walls = wallGenerator.generateWalls(spawnPoints);
+
+        // Add to world and store reference
+        this.obstacleWalls = walls;
+        World.add(this.world, walls);
     }
 
     /**

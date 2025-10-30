@@ -33,6 +33,38 @@
 
 ### 2025년 10월
 
+#### 10월 30일 - Procedural Wall Generation 구현 ✅
+**그리드 기반 랜덤 벽 생성 시스템**
+- 60px 그리드 시스템 구축 (`js/config/grid.js`)
+- Spatial Hash Grid로 O(n) 충돌 감지
+- 가로/세로 직사각형 벽 (50% / 50%)
+- 안전지역 시스템 (스폰 주변 4셀 보호)
+
+**검증 시스템:**
+- Flood Fill 연결성 체크
+- 스폰 균형 검증
+- 최소 장애물 개수 (60%)
+- LOS 체크 비활성화 (FFA 특성 고려)
+
+**3가지 난이도 프리셋:**
+- Easy: 8개 벽, 110px 간격 (오픈 아레나)
+- Medium: 15개 벽, 50px 간격 (균형)
+- Hard: 25개 벽, 40px 간격 (미로)
+- **핵심 컨셉**: 매 라운드마다 랜덤 난이도 선택
+
+**파라미터 튜닝:**
+- 벽 크기: 15-25px × 30-80px (가늘고 작게)
+- 생성 시간: ~3ms (목표 100ms의 3%)
+
+**L자 벽 시도 및 포기:**
+- `Bodies.fromVertices()` → 5각형 변형
+- 두 직사각형 → 시각적으로 깔끔하지 않음
+- 결론: 가로/세로 직사각형만으로 충분
+
+**상세**: [procedural-walls.md](./docs/devlogs/procedural-walls.md)
+
+---
+
 #### 10월 30일 - GitHub Pages 공개 배포 ✅
 **프로토타입 공개**
 - GitHub 저장소 생성: https://github.com/gogodevelop2/destruction-zone-web

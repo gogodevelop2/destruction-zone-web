@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Module Test</title>
+</head>
+<body>
+    <h1>Testing ES6 Modules</h1>
+    <div id="output"></div>
+
+    <script type="module">
+        import { COLLISION_CATEGORY, SAFE_ZONE_SPAWNS, CANVAS_WIDTH, PHYSICS } from './js/config/constants.js';
+        import { TRON_COLORS, WALL_COLOR, PARTICLE_COLORS } from './js/config/colors.js';
+
+        const output = document.getElementById('output');
+
+        output.innerHTML = `
+            <h2>Constants Test</h2>
+            <pre>
+COLLISION_CATEGORY: ${JSON.stringify(COLLISION_CATEGORY, null, 2)}
+CANVAS_WIDTH: ${CANVAS_WIDTH}
+SAFE_ZONE_SPAWNS[0]: ${JSON.stringify(SAFE_ZONE_SPAWNS[0])}
+PHYSICS: ${JSON.stringify(PHYSICS, null, 2)}
+            </pre>
+
+            <h2>Colors Test</h2>
+            <pre>
+TRON_COLORS: ${JSON.stringify(TRON_COLORS, null, 2)}
+WALL_COLOR: ${WALL_COLOR}
+PARTICLE_COLORS: ${JSON.stringify(PARTICLE_COLORS, null, 2)}
+            </pre>
+
+            <h2 style="color: green;">✅ All modules loaded successfully!</h2>
+        `;
+    </script>
+</body>
+</html>

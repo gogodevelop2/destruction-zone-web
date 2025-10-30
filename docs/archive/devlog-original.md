@@ -751,7 +751,7 @@ Matter.js의 충돌 이벤트 시스템이 매우 강력하고 사용하기 쉽�
 
 #### DOSBox 설치 및 원본 게임 실행
 - **설치**: `brew install dosbox-x` + Rosetta 2
-- **실행**: dzone-v1.3/DZONE.EXE 분석
+- **실행**: dos-original/dzone-v1.3/DZONE.EXE 분석
 - **발견**: 우측 세로 사이드바에 6개 탱크 슬롯 배치
   - 각 슬롯: 무기명, 세로 게이지 2개
   - 미니멀한 디자인
@@ -1192,7 +1192,7 @@ element.style.height = `${percentage}%`;
 - WEAPONS.md - 34개 전체 무기 문서
 - ARCHITECTURE.md - 업데이트된 Phase 구조
 - [Matter.js Collision Filtering](https://brm.io/matter-js/docs/classes/Body.html#property_collisionFilter)
-- dzone-v1.3/DZONE.DOC - 원본 게임 매뉴얼
+- dos-original/dzone-v1.3/DZONE.DOC - 원본 게임 매뉴얼
 
 ---
 ---

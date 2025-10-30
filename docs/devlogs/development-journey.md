@@ -25,7 +25,7 @@
 - AI 탱크
 
 **보존된 자료:**
-- `dzone-v1.0/`, `dzone-v1.3/` - 원본 DOS 실행파일
+- `dos-original/dzone-v1.0/`, `dos-original/dzone-v1.3/` - 원본 DOS 실행파일
 - `WEAPONS.md` - 원본 매뉴얼에서 추출한 무기 명세
 
 ### 초기 웹 포팅 시도
@@ -427,7 +427,7 @@ function gameLoop(currentTime) {
 
 **보존된 것:**
 - ✅ 개발 여정 (이 문서)
-- ✅ DOS 원본 (`dzone-v1.0/`, `dzone-v1.3/`)
+- ✅ DOS 원본 (`dos-original/dzone-v1.0/`, `dos-original/dzone-v1.3/`)
 - ✅ 원본 매뉴얼 추출 데이터 (`WEAPONS.md`)
 
 **현재 작업:**

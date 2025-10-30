@@ -5,7 +5,7 @@
 import { COLLISION_CATEGORY, SAFE_ZONE_SPAWNS, VISUAL_MARGIN, WALL_THICKNESS, PHYSICS, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
 import { TRON_COLORS } from '../config/colors.js';
 import { WEAPON_DATA } from '../config/weapons.js';
-import { initPixiJS, createTankExplosionParticles, createProjectileHitParticles, updateParticles, getProjectileContainer } from './particles.js';
+import { initPixiJS, createExplosion, createTankExplosionParticles, createHitEffect, createProjectileHitParticles, updateParticles, getProjectileContainer } from './particles.js';
 import ProjectileRenderer from './ProjectileRenderer.js';
 import Renderer from './Renderer.js';
 import Tank from '../entities/Tank.js';
@@ -70,7 +70,7 @@ export default class Game {
 
         // Setup systems
         setupKeyboardControls();
-        setupCollisionHandlers(this.engine, this, createProjectileHitParticles);
+        setupCollisionHandlers(this.engine, this, createHitEffect, createProjectileHitParticles);
 
         // Initialize AI for all non-player tanks
         this.aiTanks.forEach(tank => initAI(tank));
@@ -180,14 +180,19 @@ export default class Game {
                 spawn.y,
                 {
                     size: 30,
-                    thrustPower: 0.0003,
-                    rotationSpeed: 3.0,
+                    thrustPower: 0.01,
+                    rotationSpeed: 0.01,
                     color: TRON_COLORS[i],
                     maxHealth: 100
                 },
                 this.Matter,
                 this.world,
-                (x, y) => createTankExplosionParticles(x, y)  // Explosion callback
+                (x, y) => {
+                    // Create explosion rings (shockwave)
+                    createExplosion(x, y);
+                    // Create explosion particles (sparks)
+                    createTankExplosionParticles(x, y);
+                }
             );
             tank.id = `TANK ${i + 1}`;
             this.tanks.push(tank);
@@ -226,7 +231,7 @@ export default class Game {
         // Update all tanks
         this.tanks.forEach(tank => tank.update());
 
-        // Update physics
+        // Update physics with provided fixed timestep (converted to milliseconds)
         this.Matter.Engine.update(this.engine, deltaTime * 1000);
 
         // Update projectiles

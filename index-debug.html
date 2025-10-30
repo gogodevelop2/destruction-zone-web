@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destruction Zone (DEBUG)</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        #errorLog {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 400px;
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(255, 0, 0, 0.9);
+            border: 2px solid #ff0000;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #fff;
+            z-index: 10000;
+        }
+        #errorLog .error {
+            border-bottom: 1px solid #ff6666;
+            padding: 5px 0;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 DESTRUCTION ZONE (DEBUG MODE)</h1>
+
+    <div id="gameContainer">
+        <!-- 좌측 사이드바: Tank 1, 2, 3 -->
+        <div id="leftStats">
+            <div class="tank-stat" id="tank1-stat">
+                <div class="tank-name">TANK 1</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank2-stat">
+                <div class="tank-name">TANK 2</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank3-stat">
+                <div class="tank-name">TANK 3</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+        </div>
+
+        <!-- 게임 캔버스 + PixiJS 오버레이 -->
+        <div id="canvasWrapper">
+            <canvas id="gameCanvas" width="960" height="720"></canvas>
+            <div id="pixiContainer"></div>
+        </div>
+
+        <!-- 우측 사이드바: Tank 4, 5, 6 -->
+        <div id="rightStats">
+            <div class="tank-stat" id="tank4-stat">
+                <div class="tank-name">TANK 4</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank5-stat">
+                <div class="tank-name">TANK 5</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank6-stat">
+                <div class="tank-name">TANK 6</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debugInfo" style="display: none;"></div>
+    <div id="errorLog"></div>
+
+    <!-- Matter.js Library (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+
+    <!-- PixiJS Library (v7) -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+
+    <!-- Error logging -->
+    <script>
+        const errorLog = document.getElementById('errorLog');
+        const errors = [];
+
+        function logError(type, msg, details = '') {
+            const timestamp = new Date().toLocaleTimeString();
+            const errorMsg = `[${timestamp}] ${type}: ${msg}`;
+            errors.push({ type, msg, details, timestamp });
+
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<strong>${type}</strong><br>${msg}<br><small>${details}</small>`;
+            errorLog.appendChild(errorDiv);
+            errorLog.scrollTop = errorLog.scrollHeight;
+
+            console.error(errorMsg, details);
+        }
+
+        window.addEventListener('error', (e) => {
+            logError('ERROR', e.message, `${e.filename}:${e.lineno}:${e.colno}`);
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            logError('PROMISE', e.reason, e.reason?.stack || '');
+        });
+
+        console.log('%c🔍 DEBUG MODE ENABLED', 'color: #00ff00; font-size: 16px; font-weight: bold');
+        console.log('All errors will be logged to the red box in the bottom right');
+    </script>
+
+    <!-- Load game as module with detailed logging -->
+    <script type="module">
+        console.log('📦 Loading main.js...');
+
+        try {
+            await import('./js/main.js');
+            console.log('✅ main.js loaded successfully');
+        } catch (error) {
+            console.error('❌ Failed to load main.js:', error);
+            logError('MODULE', 'Failed to load main.js', error.stack);
+        }
+    </script>
+</body>
+</html>

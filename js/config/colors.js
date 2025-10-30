@@ -36,6 +36,6 @@ export const BACKGROUND_COLOR = '#000011';
 export const PARTICLE_COLORS = {
     EXPLOSION_START: 0xffff00,  // Yellow
     EXPLOSION_END: 0xffffff,    // White
-    HIT_START: 0xff6600,        // Orange
-    HIT_END: 0xffffff           // White
+    HIT_START: 0xffffff,        // White
+    HIT_END: 0xff8800           // Orange
 };

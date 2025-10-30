@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Minimal Test</title>
+    <style>
+        body {
+            background: #000011;
+            color: #00ffff;
+            font-family: monospace;
+            padding: 20px;
+        }
+        canvas {
+            border: 1px solid #00ffff;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minimal Test</h1>
+    <canvas id="gameCanvas" width="960" height="720"></canvas>
+    <div id="pixiContainer"></div>
+    <div id="log"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+
+    <script type="module">
+        const log = document.getElementById('log');
+        function addLog(msg) {
+            console.log(msg);
+            log.innerHTML += msg + '<br>';
+        }
+
+        try {
+            addLog('✓ Starting test...');
+
+            // Test 1: Libraries loaded
+            addLog(`✓ Matter.js: ${typeof Matter !== 'undefined'}`);
+            addLog(`✓ PIXI: ${typeof PIXI !== 'undefined'}`);
+
+            // Test 2: Import constants
+            addLog('Loading constants...');
+            const { CANVAS_WIDTH, CANVAS_HEIGHT, COLLISION_CATEGORY } =
+                await import('./js/config/constants.js');
+            addLog(`✓ Constants: ${CANVAS_WIDTH}x${CANVAS_HEIGHT}`);
+
+            // Test 3: Import colors
+            addLog('Loading colors...');
+            const { TRON_COLORS } = await import('./js/config/colors.js');
+            addLog(`✓ Colors: ${TRON_COLORS.length} colors`);
+
+            // Test 4: Import particles
+            addLog('Loading particles...');
+            const { initPixiJS, getProjectileContainer } = await import('./js/core/particles.js');
+            addLog('✓ Particles module loaded');
+
+            // Test 5: Initialize PixiJS
+            addLog('Initializing PixiJS...');
+            const pixiApp = initPixiJS(CANVAS_WIDTH, CANVAS_HEIGHT);
+            document.getElementById('pixiContainer').appendChild(pixiApp.view);
+            addLog('✓ PixiJS initialized');
+
+            // Test 6: Import ProjectileRenderer
+            addLog('Loading ProjectileRenderer...');
+            const ProjectileRenderer = (await import('./js/core/ProjectileRenderer.js')).default;
+            ProjectileRenderer.init(getProjectileContainer());
+            addLog('✓ ProjectileRenderer initialized');
+
+            // Test 7: Import Renderer
+            addLog('Loading Renderer...');
+            const Renderer = (await import('./js/core/Renderer.js')).default;
+            const canvas = document.getElementById('gameCanvas');
+            const renderer = new Renderer(canvas);
+            renderer.setMatter(Matter);
+            addLog('✓ Renderer created');
+
+            // Test 8: Import Tank
+            addLog('Loading Tank...');
+            const Tank = (await import('./js/entities/Tank.js')).default;
+            addLog('✓ Tank class loaded');
+
+            // Test 9: Create physics world
+            addLog('Creating physics world...');
+            const engine = Matter.Engine.create();
+            const world = engine.world;
+            engine.gravity.y = 0;
+            addLog('✓ Physics world created');
+
+            // Test 10: Create a tank
+            addLog('Creating tank...');
+            const tank = new Tank(
+                480, 360,
+                { size: 30, thrustPower: 0.0003, rotationSpeed: 3.0, color: '#00ffff', maxHealth: 100 },
+                Matter,
+                world,
+                (x, y) => console.log('Tank exploded at', x, y)
+            );
+            tank.id = 'TEST TANK';
+            addLog('✓ Tank created');
+
+            // Test 11: Render
+            addLog('Rendering...');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#000011';
+            ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            tank.render(ctx);
+            addLog('✓ Tank rendered');
+
+            addLog('<br>✅ ALL TESTS PASSED!');
+
+        } catch (error) {
+            addLog(`<br>❌ ERROR: ${error.message}<br>${error.stack}`);
+        }
+    </script>
+</body>
+</html>

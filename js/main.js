@@ -22,17 +22,31 @@ async function main() {
     const game = new Game();
     await game.init(canvas);
 
-    // Game loop
+    // Game loop with Fixed Timestep Accumulator
     let lastTime = performance.now();
+    let accumulator = 0;
+    const maxFrameTime = 0.25; // Prevent spiral of death
 
     function gameLoop(currentTime) {
-        const deltaTime = (currentTime - lastTime) / 1000;
+        // Calculate actual elapsed time
+        let deltaTime = (currentTime - lastTime) / 1000;
         lastTime = currentTime;
 
-        // Update with fixed timestep
-        game.update(PHYSICS.FIXED_TIMESTEP);
+        // Clamp deltaTime to prevent spiral of death
+        if (deltaTime > maxFrameTime) {
+            deltaTime = maxFrameTime;
+        }
 
-        // Render
+        // Accumulate time
+        accumulator += deltaTime;
+
+        // Update physics in fixed timesteps
+        while (accumulator >= PHYSICS.FIXED_TIMESTEP) {
+            game.update(PHYSICS.FIXED_TIMESTEP);
+            accumulator -= PHYSICS.FIXED_TIMESTEP;
+        }
+
+        // Render (always render once per frame, regardless of update count)
         game.render();
 
         requestAnimationFrame(gameLoop);

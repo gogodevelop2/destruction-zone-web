@@ -6,9 +6,10 @@
  * Setup collision event handlers for the physics engine
  * @param {Matter.Engine} engine - Matter.js engine
  * @param {Object} game - Game state object containing tanks and projectiles
- * @param {Function} createProjectileHitParticles - Particle effect callback
+ * @param {Function} createHitEffect - Shockwave ring effect callback
+ * @param {Function} createProjectileHitParticles - Spark particle effect callback
  */
-export function setupCollisionHandlers(engine, game, createProjectileHitParticles) {
+export function setupCollisionHandlers(engine, game, createHitEffect, createProjectileHitParticles) {
     const Matter = game.Matter;
 
     Matter.Events.on(engine, 'collisionStart', (event) => {
@@ -17,15 +18,15 @@ export function setupCollisionHandlers(engine, game, createProjectileHitParticle
 
             // Check projectile → tank collision
             if (bodyA.label === 'projectile' && bodyB.label === 'tank') {
-                handleProjectileHit(bodyA, bodyB, game, createProjectileHitParticles);
+                handleProjectileHit(bodyA, bodyB, game, createHitEffect, createProjectileHitParticles);
             } else if (bodyA.label === 'tank' && bodyB.label === 'projectile') {
-                handleProjectileHit(bodyB, bodyA, game, createProjectileHitParticles);
+                handleProjectileHit(bodyB, bodyA, game, createHitEffect, createProjectileHitParticles);
             }
             // Check projectile → wall collision
             else if (bodyA.label === 'projectile' && (bodyB.label === 'wall' || bodyB.label === 'obstacle_wall')) {
-                handleProjectileWallHit(bodyA, game, createProjectileHitParticles);
+                handleProjectileWallHit(bodyA, game, createHitEffect, createProjectileHitParticles);
             } else if ((bodyA.label === 'wall' || bodyA.label === 'obstacle_wall') && bodyB.label === 'projectile') {
-                handleProjectileWallHit(bodyB, game, createProjectileHitParticles);
+                handleProjectileWallHit(bodyB, game, createHitEffect, createProjectileHitParticles);
             }
 
             // TODO: projectile vs projectile collision
@@ -40,9 +41,10 @@ export function setupCollisionHandlers(engine, game, createProjectileHitParticle
  * @param {Matter.Body} projectileBody - Projectile physics body
  * @param {Matter.Body} tankBody - Tank physics body
  * @param {Object} game - Game state
- * @param {Function} createProjectileHitParticles - Particle effect callback
+ * @param {Function} createHitEffect - Shockwave ring effect callback
+ * @param {Function} createProjectileHitParticles - Spark particle effect callback
  */
-function handleProjectileHit(projectileBody, tankBody, game, createProjectileHitParticles) {
+function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, createProjectileHitParticles) {
     // Find projectile object
     const projectile = game.projectiles.find(p => p.body === projectileBody);
     if (!projectile || !projectile.active) return;
@@ -54,7 +56,8 @@ function handleProjectileHit(projectileBody, tankBody, game, createProjectileHit
     // Apply damage
     hitTank.takeDamage(projectile.weaponData.damage);
 
-    // Create particle effect (PixiJS)
+    // Create visual effects (PixiJS)
+    createHitEffect(projectileBody.position.x, projectileBody.position.y);
     createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
 
     // Remove projectile
@@ -70,14 +73,16 @@ function handleProjectileHit(projectileBody, tankBody, game, createProjectileHit
  * Handle projectile hitting a wall
  * @param {Matter.Body} projectileBody - Projectile physics body
  * @param {Object} game - Game state
- * @param {Function} createProjectileHitParticles - Particle effect callback
+ * @param {Function} createHitEffect - Shockwave ring effect callback
+ * @param {Function} createProjectileHitParticles - Spark particle effect callback
  */
-function handleProjectileWallHit(projectileBody, game, createProjectileHitParticles) {
+function handleProjectileWallHit(projectileBody, game, createHitEffect, createProjectileHitParticles) {
     // Find projectile object
     const projectile = game.projectiles.find(p => p.body === projectileBody);
     if (!projectile || !projectile.active) return;
 
-    // Create particle effect (PixiJS)
+    // Create visual effects (PixiJS)
+    createHitEffect(projectileBody.position.x, projectileBody.position.y);
     createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
 
     // Remove projectile

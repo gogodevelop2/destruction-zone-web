@@ -1,0 +1,170 @@
+/* ============================================
+   Destruction Zone - Main Styles
+   ============================================ */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #000011;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Courier New', monospace;
+    color: #00ffff;
+    padding: 20px;
+}
+
+h1 {
+    margin-bottom: 15px;
+    font-size: 24px;
+    text-shadow: 0 0 10px #00ffff;
+}
+
+#gameContainer {
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    align-items: stretch;
+}
+
+#canvasWrapper {
+    position: relative;
+}
+
+#pixiContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+#pixiContainer canvas {
+    display: block;
+}
+
+/* 좌측 사이드바 - 3개 세로 배치 */
+#leftStats {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 60px;
+}
+
+/* 우측 사이드바 - 3개 세로 배치 */
+#rightStats {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    width: 60px;
+}
+
+/* 각 탱크 스탯 패널 - 세로로 길게 */
+.tank-stat {
+    background: rgba(0, 10, 15, 0.8);
+    border: 1px solid #006666;
+    border-top: none;
+    padding: 8px 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    height: 240px; /* 720 / 3 = 240 */
+    justify-content: flex-start;
+}
+
+.tank-stat:first-child {
+    border-top: 1px solid #006666;
+}
+
+.tank-stat .tank-name {
+    font-size: 11px;
+    font-weight: normal;
+    font-family: monospace;
+    color: #00ffff;
+}
+
+.tank-stat .gauges {
+    display: flex;
+    gap: 6px;
+    flex-direction: row;
+    justify-content: center;
+    flex: 1;
+}
+
+.gauge-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex: 1;
+}
+
+.gauge-label {
+    font-size: 9px;
+    font-family: monospace;
+    color: #00cccc;
+}
+
+/* 세로 게이지 바 */
+.gauge {
+    width: 12px;
+    height: 140px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 1px solid #004444;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 아래에서 위로 차오르는 게이지 */
+.gauge-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: height 0.2s ease;
+}
+
+.gauge-fill.health {
+    background: #00cc00;
+}
+
+.gauge-fill.weapon {
+    background: #cccc00;
+}
+
+.tank-stat .weapon-info {
+    font-size: 10px;
+    font-family: monospace;
+    color: #cccccc;
+}
+
+.tank-stat .score {
+    font-size: 9px;
+    font-family: monospace;
+    color: #999999;
+}
+
+#gameCanvas {
+    border: none;
+    box-shadow: none;
+    background: #000011;
+    outline: none;
+}
+
+#debugInfo {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px;
+    border: 1px solid #ff00ff;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #ff00ff;
+}

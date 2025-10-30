@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Destruction Zone</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <h1>🎮 DESTRUCTION ZONE</h1>
+
+    <div id="gameContainer">
+        <!-- 좌측 사이드바: Tank 1, 2, 3 -->
+        <div id="leftStats">
+            <div class="tank-stat" id="tank1-stat">
+                <div class="tank-name">TANK 1</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank2-stat">
+                <div class="tank-name">TANK 2</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 100%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">MISSILE</div>
+                <div class="score">$0</div>
+            </div>
+            <div class="tank-stat" id="tank3-stat">
+                <div class="tank-name">TANK 3</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+        </div>
+
+        <!-- 게임 캔버스 + PixiJS 오버레이 -->
+        <div id="canvasWrapper">
+            <canvas id="gameCanvas" width="960" height="720"></canvas>
+            <div id="pixiContainer"></div>
+        </div>
+
+        <!-- 우측 사이드바: Tank 4, 5, 6 -->
+        <div id="rightStats">
+            <div class="tank-stat" id="tank4-stat">
+                <div class="tank-name">TANK 4</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank5-stat">
+                <div class="tank-name">TANK 5</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+            <div class="tank-stat" id="tank6-stat">
+                <div class="tank-name">TANK 6</div>
+                <div class="gauges">
+                    <div class="gauge-container">
+                        <div class="gauge-label">HP</div>
+                        <div class="gauge">
+                            <div class="gauge-fill health" style="height: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="gauge-container">
+                        <div class="gauge-label">WPN</div>
+                        <div class="gauge">
+                            <div class="gauge-fill weapon" style="height: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="weapon-info">-</div>
+                <div class="score">-</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="debugInfo" style="display: none;"></div>
+
+    <!-- Matter.js Library (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
+
+    <!-- PixiJS Library (v7) -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.3.2/dist/pixi.min.js"></script>
+
+    <!-- Load game as module -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

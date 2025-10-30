@@ -22,7 +22,10 @@
 ### 참고 문서
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)** - 전체 시스템 아키텍처
 - **[WEAPONS.md](./WEAPONS.md)** - 무기 시스템 명세 (34종)
-- **[PIXI_PROJECTILE_MIGRATION.md](./PIXI_PROJECTILE_MIGRATION.md)** - PixiJS 전환 계획
+
+### 아카이브
+- **[PixiJS 마이그레이션 계획](./docs/archive/pixi-projectile-migration.md)** - 완료된 4단계 전환 계획
+- **[전체 개발 히스토리](./docs/archive/devlog-original.md)** - 시간순 상세 기록
 
 ---
 

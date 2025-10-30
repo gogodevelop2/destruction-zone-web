@@ -25,7 +25,7 @@
 
 ### 4단계 마이그레이션
 
-계획 문서: [PIXI_PROJECTILE_MIGRATION.md](../../PIXI_PROJECTILE_MIGRATION.md)
+계획 문서: [pixi-projectile-migration.md](../archive/pixi-projectile-migration.md)
 
 #### Phase 1: PixiJS 추가 (A/B 테스트)
 
@@ -153,7 +153,7 @@ pixiApp = new PIXI.Application({
    - 단계별로 검증하며 진행
 
 ### 참고
-- [PIXI_PROJECTILE_MIGRATION.md](../../PIXI_PROJECTILE_MIGRATION.md)
+- [pixi-projectile-migration.md](../archive/pixi-projectile-migration.md)
 - [PixiJS Graphics API](https://pixijs.download/release/docs/PIXI.Graphics.html)
 - 커밋: 3d93927
 

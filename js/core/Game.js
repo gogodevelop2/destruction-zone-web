@@ -2,9 +2,12 @@
 // Game - Main Game Controller
 // ============================================
 
-import { COLLISION_CATEGORY, SAFE_ZONE_SPAWNS, VISUAL_MARGIN, WALL_THICKNESS, PHYSICS, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
+import { COLLISION_CATEGORY, VISUAL_MARGIN, WALL_THICKNESS, PHYSICS, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
 import { TRON_COLORS } from '../config/colors.js';
 import { WEAPON_DATA } from '../config/weapons.js';
+import { GAME_MODE, TEAM_COLORS } from '../config/gameModes.js';
+import FreeForAllMode from '../modes/FreeForAllMode.js';
+import TeamBattleMode from '../modes/TeamBattleMode.js';
 import { initPixiJS, createExplosion, createTankExplosionParticles, createHitEffect, createProjectileHitParticles, updateParticles, getProjectileContainer } from './particles.js';
 import ProjectileRenderer from './ProjectileRenderer.js';
 import Renderer from './Renderer.js';
@@ -12,14 +15,17 @@ import Tank from '../entities/Tank.js';
 import Projectile from '../entities/Projectile.js';
 import { setupCollisionHandlers } from '../systems/collision.js';
 import { setupKeyboardControls, handleInput, fireProjectile } from '../systems/input.js';
-import { initAI, updateAllAI } from '../systems/ai.js';
+import { initAI, updateAI } from '../systems/ai.js';
 import { updateUI } from '../ui/hud.js';
 
 /**
  * Main Game class - Coordinates all game systems
  */
 export default class Game {
-    constructor() {
+    /**
+     * @param {string} modeType - Game mode type (GAME_MODE.FREE_FOR_ALL or GAME_MODE.TEAM_BATTLE)
+     */
+    constructor(modeType = GAME_MODE.FREE_FOR_ALL) {
         // Matter.js (global reference)
         this.Matter = window.Matter;
 
@@ -39,6 +45,25 @@ export default class Game {
         // References
         this.playerTank = null;
         this.aiTanks = [];
+
+        // Game mode
+        this.gameMode = this.createGameMode(modeType);
+        console.log(`🎮 Game Mode: ${this.gameMode.getName()}`);
+    }
+
+    /**
+     * Create game mode instance based on type
+     * @param {string} modeType - Mode type constant
+     * @returns {GameMode} Game mode instance
+     */
+    createGameMode(modeType) {
+        switch(modeType) {
+            case GAME_MODE.TEAM_BATTLE:
+                return new TeamBattleMode(this);
+            case GAME_MODE.FREE_FOR_ALL:
+            default:
+                return new FreeForAllMode(this);
+        }
     }
 
     /**
@@ -170,11 +195,23 @@ export default class Game {
     }
 
     /**
-     * Create all tanks
+     * Create all tanks based on game mode
      */
     createTanks() {
-        for (let i = 0; i < 6; i++) {
-            const spawn = SAFE_ZONE_SPAWNS[i];
+        // Get spawn positions from game mode
+        const spawns = this.gameMode.getSpawnPositions();
+
+        spawns.forEach((spawn, i) => {
+            // Get color based on team (for team mode) or index (for FFA)
+            let color;
+            if (spawn.team === 1) {  // RED team
+                color = TEAM_COLORS.RED[i % 3];
+            } else if (spawn.team === 2) {  // BLUE team
+                color = TEAM_COLORS.BLUE[i % 3];
+            } else {  // FFA mode - use original colors
+                color = TRON_COLORS[i];
+            }
+
             const tank = new Tank(
                 spawn.x,
                 spawn.y,
@@ -182,8 +219,9 @@ export default class Game {
                     size: 30,
                     thrustPower: 0.01,
                     rotationSpeed: 0.01,
-                    color: TRON_COLORS[i],
-                    maxHealth: 100
+                    color: color,
+                    maxHealth: 100,
+                    team: spawn.team  // Pass team info
                 },
                 this.Matter,
                 this.world,
@@ -203,7 +241,7 @@ export default class Game {
             } else {
                 this.aiTanks.push(tank);
             }
-        }
+        });
     }
 
     /**
@@ -220,13 +258,18 @@ export default class Game {
             );
         }
 
-        // Update AI tanks
-        updateAllAI(
-            this.aiTanks,
-            this.playerTank,
-            deltaTime,
-            (tank) => this.fireProjectileFromTank(tank)
-        );
+        // Update AI tanks (mode-based targeting)
+        this.aiTanks.forEach(aiTank => {
+            if (!aiTank.alive) return;
+
+            // Get target from game mode
+            const target = this.gameMode.getAITarget(aiTank, this.tanks);
+
+            if (target) {
+                // Use existing AI logic with mode-provided target
+                updateAI(aiTank, target, deltaTime, (tank) => this.fireProjectileFromTank(tank));
+            }
+        });
 
         // Update all tanks
         this.tanks.forEach(tank => tank.update());
@@ -244,6 +287,13 @@ export default class Game {
 
         // Update particles
         updateParticles(deltaTime);
+
+        // Check win condition
+        const result = this.gameMode.checkWinCondition(this.tanks);
+        if (result.won) {
+            console.log(`🏆 Winner: ${result.winner}`);
+            // TODO: Handle game end (pause, show winner screen, etc.)
+        }
     }
 
     /**

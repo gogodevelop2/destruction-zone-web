@@ -30,8 +30,12 @@ export default class Tank {
             friction: config.friction || 0.8,
             frictionAir: config.frictionAir || 0.12,
             color: config.color || '#00ffff',
-            maxHealth: config.maxHealth || 100
+            maxHealth: config.maxHealth || 100,
+            team: config.team || 0  // Team ID (0 = no team, 1 = RED, 2 = BLUE)
         };
+
+        // Game state
+        this.team = this.config.team;
 
         // Define tank shape as triangle vertices (relative to center)
         const size = this.config.size * 0.8;

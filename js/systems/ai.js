@@ -47,7 +47,7 @@ export function updateAI(aiTank, targetTank, deltaTime, fireProjectile) {
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
     // Rotate towards target
-    if (Math.abs(angleDiff) > 0.1) {
+    if (Math.abs(angleDiff) > 0.05) {  // 약 3도 - 더 정밀한 조준
         aiTank.rotation = angleDiff > 0 ? 1 : -1;
     } else {
         aiTank.rotation = 0;
@@ -62,9 +62,9 @@ export function updateAI(aiTank, targetTank, deltaTime, fireProjectile) {
         aiTank.thrust = 0;
     }
 
-    // Fire at target if aimed correctly
+    // Fire at target if aimed correctly (약 3도 이내)
     state.fireCooldown -= deltaTime;
-    if (Math.abs(angleDiff) < 0.2 && state.fireCooldown <= 0) {
+    if (Math.abs(angleDiff) < 0.05 && state.fireCooldown <= 0) {
         fireProjectile(aiTank);
         state.fireCooldown = AI_FIRE_COOLDOWN;
     }

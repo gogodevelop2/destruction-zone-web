@@ -4,6 +4,7 @@
 
 import Game from './core/Game.js';
 import { PHYSICS } from './config/constants.js';
+import { GAME_MODE } from './config/gameModes.js';
 
 /**
  * Initialize and start the game
@@ -18,8 +19,12 @@ async function main() {
         return;
     }
 
-    // Create and initialize game
-    const game = new Game();
+    // Select game mode (TODO: Add UI for mode selection in lobby screen)
+    // For now, can be changed here manually
+    const selectedMode = GAME_MODE.FREE_FOR_ALL;  // or GAME_MODE.TEAM_BATTLE
+
+    // Create and initialize game with selected mode
+    const game = new Game(selectedMode);
     await game.init(canvas);
 
     // Game loop with Fixed Timestep Accumulator

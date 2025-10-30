@@ -49,6 +49,9 @@ export default class Renderer {
         // Draw canvas boundary
         this.drawBoundary();
 
+        // Draw spawn zones (debug)
+        this.drawSpawnZones(game);
+
         // Draw all tanks
         game.tanks.forEach(tank => {
             if (tank && tank.alive) {
@@ -191,6 +194,60 @@ export default class Renderer {
 
             ctx.restore();
         });
+    }
+
+    /**
+     * Draw spawn zones (debug mode)
+     * Shows safe zone boundaries and spawn points
+     */
+    drawSpawnZones(game) {
+        const ctx = this.ctx;
+        const spawns = game.gameMode.getSpawnPositions();
+
+        ctx.save();
+
+        spawns.forEach((spawn, i) => {
+            // Get tank color for this spawn
+            const tank = game.tanks[i];
+            const tankColor = tank ? tank.config.color : '#ffffff';
+
+            // Draw spawn point (center)
+            ctx.fillStyle = tankColor;
+            ctx.shadowColor = tankColor;
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(spawn.x, spawn.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw safe zone boundary (89x89 square centered on spawn, 2/3 of original 133)
+            const safeZoneSize = 89;
+            const x = spawn.x - safeZoneSize / 2;
+            const y = spawn.y - safeZoneSize / 2;
+
+            ctx.strokeStyle = tankColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.shadowColor = tankColor;
+            ctx.shadowBlur = 8;
+            ctx.strokeRect(x, y, safeZoneSize, safeZoneSize);
+
+            // Draw spawn label
+            ctx.setLineDash([]);
+            ctx.fillStyle = tankColor;
+            ctx.font = '12px monospace';
+            ctx.textAlign = 'center';
+            ctx.shadowBlur = 5;
+            ctx.fillText(`Spawn ${i + 1}`, spawn.x, spawn.y - 75);
+
+            // Draw team label (if team mode)
+            if (spawn.team === 1) {
+                ctx.fillText('RED', spawn.x, spawn.y + 85);
+            } else if (spawn.team === 2) {
+                ctx.fillText('BLUE', spawn.x, spawn.y + 85);
+            }
+        });
+
+        ctx.restore();
     }
 
     /**

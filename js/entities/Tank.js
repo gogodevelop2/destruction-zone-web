@@ -65,6 +65,10 @@ export default class Tank {
 
         Matter.World.add(world, this.body);
 
+        // High rotational inertia for stability with slight rotation on impact
+        // Higher value = more stable, less bounce on corner collisions
+        Matter.Body.setInertia(this.body, this.body.mass * 50);
+
         // Set initial rotation to face center of arena
         const centerX = 480;
         const centerY = 360;

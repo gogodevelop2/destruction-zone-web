@@ -463,7 +463,7 @@ export default class WallGenerator {
                         mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
                     },
                     friction: 0.9,
-                    restitution: 0.1,
+                    restitution: 0.0,  // No bounce
                     render: {
                         fillStyle: WALL_COLOR,
                         strokeStyle: WALL_COLOR,
@@ -504,7 +504,7 @@ export default class WallGenerator {
                         mask: COLLISION_CATEGORY.TANK | COLLISION_CATEGORY.PROJECTILE
                     },
                     friction: 0.9,
-                    restitution: 0.1
+                    restitution: 0.0  // No bounce
                 }
             )
         );

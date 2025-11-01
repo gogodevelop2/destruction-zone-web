@@ -91,6 +91,10 @@ export default class Tank {
 
         // ID (set externally)
         this.id = null;
+
+        // Combat awareness: 공격자 추적
+        // { 'TANK 2': { lastHitTime: 12345, lastPos: {x, y} } }
+        this.attackers = {};
     }
 
     /**
@@ -174,6 +178,35 @@ export default class Tank {
             this.health = 0;
             this.destroy();
         }
+    }
+
+    /**
+     * Record hit from an attacker
+     * @param {string} attackerId - ID of the attacking tank
+     * @param {Object} attackerPos - Position {x, y} of attacker
+     */
+    recordHit(attackerId, attackerPos) {
+        this.attackers[attackerId] = {
+            lastHitTime: Date.now(),
+            lastPos: { x: attackerPos.x, y: attackerPos.y }
+        };
+    }
+
+    /**
+     * Get count of active attackers (within 3-second window)
+     * @returns {number} Number of active attackers
+     */
+    getActiveAttackerCount() {
+        const now = Date.now();
+        const ACTIVE_WINDOW = 3000; // 3초
+
+        let count = 0;
+        for (const data of Object.values(this.attackers)) {
+            if (now - data.lastHitTime < ACTIVE_WINDOW) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

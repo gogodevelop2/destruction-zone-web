@@ -28,7 +28,7 @@ export const DIFFICULTY = {
     },
     medium: {
         reactionTime: 400,
-        shotCooldown: 2000,
+        shotCooldown: 1000,     // 1초 쿨다운
         updateRate: 10
     },
     hard: {
@@ -68,8 +68,6 @@ export class AIController {
         // 업데이트 타이밍
         this.lastUpdateTime = 0;
         this.updateInterval = 1000 / this.difficulty.updateRate; // 100ms @ 10 FPS
-
-        console.log(`[AI ${tank.id}] Initialized with difficulty: ${difficulty}`);
     }
 
     /**
@@ -167,11 +165,13 @@ export class AIController {
 
         // 발사 제어
         if (fire && this.canFire(currentTime)) {
+            // 쿨다운 즉시 적용 (중복 발사 방지)
+            this.lastFireTime = currentTime;
+
             // 난이도별 반응 지연 시뮬레이션
             setTimeout(() => {
                 if (this.tank.alive) {
                     fireProjectile(this.tank);
-                    this.lastFireTime = currentTime;
                 }
             }, this.difficulty.reactionTime);
         }
@@ -244,8 +244,6 @@ export class AIManager {
         controller.lastUpdateTime = -offset;
 
         this.controllers.push(controller);
-
-        console.log(`[AIManager] Registered AI ${tank.id} with offset ${offset}ms`);
     }
 
     /**
@@ -255,7 +253,6 @@ export class AIManager {
     updateObstacles(walls) {
         // Navmesh 재생성
         this.navmesh.build(walls);
-        console.log('[AIManager] Navmesh updated');
     }
 
     /**
@@ -290,7 +287,6 @@ export class AIManager {
         const index = this.controllers.findIndex(c => c.tank === tank);
         if (index !== -1) {
             this.controllers.splice(index, 1);
-            console.log(`[AIManager] Unregistered AI ${tank.id}`);
         }
     }
 

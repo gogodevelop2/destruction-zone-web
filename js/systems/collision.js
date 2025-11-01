@@ -53,6 +53,14 @@ function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, cr
     const hitTank = game.tanks.find(t => t.body === tankBody);
     if (!hitTank || !hitTank.alive) return;
 
+    // Find attacker
+    const attacker = game.tanks.find(t => t.id === projectile.ownerId);
+
+    if (attacker && attacker.alive) {
+        // Record hit (공격자 추적)
+        hitTank.recordHit(attacker.id, attacker.body.position);
+    }
+
     // Apply damage
     hitTank.takeDamage(projectile.weaponData.damage);
 

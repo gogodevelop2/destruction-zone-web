@@ -7,11 +7,12 @@
 ## 📋 목차
 
 1. [개요](#개요)
-2. [2025-11-01: AI 시스템 대규모 리팩토링](#2025-11-01-ai-시스템-대규모-리팩토링)
-3. [2025-11-01: 타겟 선택 시스템 개선](#2025-11-01-타겟-선택-시스템-개선)
-4. [기술적 세부사항](#기술적-세부사항)
-5. [알려진 이슈](#알려진-이슈)
-6. [다음 단계](#다음-단계)
+2. [2025-11-01: 회피 시스템 리팩토링](#2025-11-01-회피-시스템-리팩토링)
+3. [2025-11-01: AI 시스템 대규모 리팩토링](#2025-11-01-ai-시스템-대규모-리팩토링)
+4. [2025-11-01: 타겟 선택 시스템 개선](#2025-11-01-타겟-선택-시스템-개선)
+5. [기술적 세부사항](#기술적-세부사항)
+6. [알려진 이슈](#알려진-이슈)
+7. [다음 단계](#다음-단계)
 
 ---
 
@@ -24,6 +25,271 @@ Destruction Zone의 AI 시스템은 **인간처럼 싸우는 탱크 AI**를 목�
 - **물리 엔진 신뢰**: Matter.js를 Single Source of Truth로 사용
 - **성능 중심**: 60 FPS 절대 유지, AI는 10 FPS 업데이트
 - **점진적 개선**: MVP → 플레이 테스트 → 개선 반복
+
+---
+
+## 2025-11-01: 회피 시스템 리팩토링
+
+### 배경
+기존 StateMachine 내부에 회피 로직이 섞여 있어 복잡하고, 회피 종료 조건이 불명확하여 무한 루프 버그가 발생했습니다. "회피기동은 연속으로 쓸 수도 있어야 하고, 회피 중에는 그 동작에만 집중하고 끝나면 다시 원래 모드로 돌아와야" 한다는 요구사항을 안정적으로 구현하기 위해 전용 모듈로 분리했습니다.
+
+### 주요 변경사항
+
+#### 1. EvasionController 전용 모듈 생성
+
+**Before: StateMachine 내부에 회피 로직 혼재**
+```javascript
+// StateMachine.js (복잡하고 산재된 로직)
+executeAttack() {
+    // 회피 시작 체크
+    if (attackerCount >= 2 || hasRearAttacker) {
+        this.evasionStartTime = now;
+        this.evasionStartPos = {...};
+    }
+
+    // 회피 실행
+    if (this.evasionStartTime) {
+        // 복잡한 회피 로직...
+        // 종료 조건 불명확
+    }
+
+    // 일반 공격
+    // ...
+}
+```
+
+**After: 독립된 EvasionController**
+```javascript
+// EvasionController.js (314 lines, 전용 모듈)
+export class EvasionController {
+    constructor(tank) {
+        this.state = EvasionState.NONE;
+        this.isActive = false;
+        this.ACTIVE_WINDOW = 3000;  // 공격자 활성 시간
+    }
+
+    canStart(attackerCount, hasRearAttacker) {
+        if (this.isActive) return false;
+        return attackerCount >= 2 || hasRearAttacker;
+    }
+
+    start() {
+        this.isActive = true;
+        this.state = EvasionState.RETREATING;
+        this.startTime = Date.now();
+        this.startPos = {...};
+    }
+
+    update() {
+        // 종료 체크 (3초 경과)
+        // 활성 공격자 체크 (없으면 종료)
+        // 상태별 실행 (RETREATING / COUNTERATTACKING)
+        return {thrust, rotation, fire};
+    }
+
+    end() {
+        // 중앙화된 종료 로직
+        this.isActive = false;
+        this.state = EvasionState.NONE;
+        this.tank.attackers = {};  // 공격자 정보 초기화
+    }
+}
+```
+
+#### 2. 회피 상태 시스템
+
+```javascript
+export const EvasionState = {
+    NONE: 'NONE',                   // 회피 안 함
+    RETREATING: 'RETREATING',       // 후진 중
+    COUNTERATTACKING: 'COUNTERATTACKING'  // 반격 중
+};
+```
+
+**회피 시작 조건:**
+- 2명 이상의 적이 동시에 공격 OR
+- 후방 공격 (105° ~ 180° 범위)
+
+**회피 동작 흐름:**
+```
+1. RETREATING 시작 (3초)
+   - 공격자들의 반대 방향으로 후진
+   - 후진하면서 발사 (fire: true)
+
+2. 3초 경과 후 이동 거리 체크
+   - 50px 이상 이동: 정상 종료
+   - 50px 미만: 벽에 막힘 → COUNTERATTACKING
+
+3. COUNTERATTACKING (3초, 1회 시도)
+   - 가장 최근 공격자를 향해 전진 반격
+   - 3초 경과 후 이동 거리 재체크
+   - 여전히 못 움직이면 포기
+```
+
+**회피 종료 조건:**
+- 3초 경과 + 충분히 이동 (50px 이상)
+- 활성 공격자 없음 (3초 이내 공격한 적 없음)
+- 반격 실패 (벽에 막혀 움직이지 못함)
+
+#### 3. StateMachine 통합
+
+```javascript
+// StateMachine.js
+import { EvasionController } from './EvasionController.js';
+
+constructor(tank, difficulty) {
+    // ...
+    this.evasionController = new EvasionController(tank);
+}
+
+checkTransitions(context) {
+    // 회피 중에는 상태 전환 안 함 (ATTACK 유지)
+    if (this.evasionController.isEvading()) {
+        return AIState.ATTACK;
+    }
+    // ...
+}
+
+executeAttack() {
+    // 회피 시작 체크
+    const attackerCount = this.tank.getActiveAttackerCount();
+    const hasRearAttacker = this.checkRearAttacker();
+
+    if (this.evasionController.canStart(attackerCount, hasRearAttacker)) {
+        this.evasionController.start();
+    }
+
+    // 회피 중이면 회피 행동 실행
+    const evasionAction = this.evasionController.update();
+    if (evasionAction) {
+        return evasionAction;
+    }
+
+    // 일반 공격
+    return this.normalAttack();
+}
+```
+
+#### 4. 버그 수정: 무한 루프 해결
+
+**문제:**
+- 회피가 시작되었는데 끝나지 않음
+- `attackers` 데이터는 만료되었지만 `evasionStartTime`은 살아있음
+- `activeAttackers.length === 0`일 때 NaN 계산 발생
+
+**해결:**
+```javascript
+update() {
+    // 활성 공격자 체크
+    const activeAttackers = this.getActiveAttackers(now);
+    if (activeAttackers.length === 0) {
+        this.end();  // 즉시 종료
+        return null;
+    }
+    // ...
+}
+
+end() {
+    // 중앙화된 종료 로직
+    this.isActive = false;
+    this.state = EvasionState.NONE;
+    this.tank.attackers = {};  // 공격자 정보 초기화
+}
+```
+
+### AI 발사 시스템 버그 수정
+
+**문제: AI가 4-5발 연속 발사**
+```javascript
+// WRONG (기존 코드)
+if (fire && this.canFire(currentTime)) {
+    setTimeout(() => {
+        fireProjectile(this.tank);
+        this.lastFireTime = currentTime;  // ❌ 지연 후 설정
+    }, this.difficulty.reactionTime);
+}
+
+// 문제: 400ms 동안 여러 번 canFire() 통과
+// → 여러 개의 setTimeout 예약됨
+```
+
+**수정: 즉시 쿨다운 적용**
+```javascript
+// CORRECT (수정 코드)
+if (fire && this.canFire(currentTime)) {
+    this.lastFireTime = currentTime;  // ✅ 즉시 설정
+
+    setTimeout(() => {
+        if (this.tank.alive) {
+            fireProjectile(this.tank);
+        }
+    }, this.difficulty.reactionTime);
+}
+
+// 결과: 쿨다운이 즉시 적용되어 중복 발사 방지
+```
+
+### 게임 밸런스 조정
+
+**발사 속도 조정:**
+```javascript
+// AIController.js - DIFFICULTY
+medium: {
+    reactionTime: 400,
+    shotCooldown: 1000,  // 2000ms → 1000ms (1초)
+    updateRate: 10
+}
+```
+
+**LOS 마진 조정:**
+```javascript
+// Perception.js
+const SAFE_MARGIN = 3;  // 5px → 3px
+
+// 이유: 너무 가까이 붙으면 LOS 꺼지는 현상 해결
+```
+
+**후방 공격 범위 명확화:**
+```javascript
+// StateMachine.js - checkRearAttacker()
+// "180° 중심으로 양쪽 15°씩 제외한 150°"
+const REAR_MIN = Math.PI * 5/12;  // 75° → 105°부터 후방
+const REAR_MAX = Math.PI;          // 180°
+```
+
+### 코드 품질 개선
+
+**console.log 정리:**
+- 제거: 24개 (디버그 로그)
+- 유지: `Perception.debugLog()` 메서드 내부만 유지
+
+**중복 상수 문서화:**
+```javascript
+// EvasionController.js
+this.ACTIVE_WINDOW = 3000;  // 공격자 활성 시간 (3초)
+// NOTE: StateMachine.js checkRearAttacker()에도 동일 값 정의됨
+// TODO: 난이도별 차별화 필요 시 DIFFICULTY 객체로 이동 예정
+
+// StateMachine.js
+const ACTIVE_WINDOW = 3000;  // 공격자 활성 시간 (3초)
+// NOTE: EvasionController.js에도 동일 값(3000) 정의됨
+// TODO: 난이도별 차별화 필요 시 DIFFICULTY 객체로 이동 예정
+```
+
+### 파일 변경
+
+- **신규**: `js/systems/ai/EvasionController.js` (314 lines)
+- **수정**: `js/systems/ai/StateMachine.js` (457 lines)
+- **수정**: `js/systems/ai/AIController.js` (315 lines)
+- **수정**: `js/systems/ai/Perception.js` (LOS 마진 3px)
+
+### 효과
+
+✅ **책임 분리**: 회피 로직이 독립 모듈로 분리되어 테스트/유지보수 용이
+✅ **버그 해결**: 무한 루프, 연속 발사 버그 수정
+✅ **안정성 향상**: 중앙화된 종료 로직으로 상태 일관성 보장
+✅ **밸런스 개선**: 1초 발사 간격, 정확한 LOS, 명확한 후방 공격 범위
+✅ **코드 품질**: 24개 console.log 제거, 중복 상수 문서화
 
 ---
 

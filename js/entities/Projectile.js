@@ -19,11 +19,12 @@ export default class Projectile {
      * @param {number} angle - Fire angle in radians
      * @param {Object} weaponData - Weapon configuration
      * @param {string} ownerColor - Tank color (for rendering)
+     * @param {string} ownerId - Tank ID who fired this projectile
      * @param {Matter} Matter - Matter.js library reference
      * @param {Matter.World} world - Matter.js world
      * @param {Object} ProjectileRenderer - Renderer object for PixiJS sprites
      */
-    constructor(x, y, angle, weaponData, ownerColor, Matter, world, ProjectileRenderer) {
+    constructor(x, y, angle, weaponData, ownerColor, ownerId, Matter, world, ProjectileRenderer) {
         this.Matter = Matter;
         this.world = world;
         this.ProjectileRenderer = ProjectileRenderer;
@@ -33,6 +34,7 @@ export default class Projectile {
         this.weaponData = weaponData;
         this.type = weaponData.type;
         this.color = ownerColor || weaponData.color;
+        this.ownerId = ownerId;  // Who fired this projectile
 
         // Calculate actual speed (DOS units → web pixels)
         const SPEED_SCALE_FACTOR = 0.01;  // 200 * 0.01 = 2

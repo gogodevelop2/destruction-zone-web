@@ -79,7 +79,7 @@ export class Perception {
             return true;
         }
 
-        const SAFE_MARGIN = 5; // 안전 마진 (픽셀)
+        const SAFE_MARGIN = 3; // 안전 마진 (픽셀)
 
         // 1. 직접 충돌 체크
         const collisions = this.Matter.Query.ray(walls, from, to);

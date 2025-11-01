@@ -124,6 +124,7 @@ export function fireProjectile(tank, WEAPON_DATA, projectiles, Projectile, Matte
             tank.body.angle,
             weaponData,
             tank.config.color,
+            tank.id,  // ownerId
             Matter,
             world,
             ProjectileRenderer
@@ -150,6 +151,7 @@ export function fireProjectile(tank, WEAPON_DATA, projectiles, Projectile, Matte
                 tank.body.angle,
                 weaponData,
                 tank.config.color,
+                tank.id,  // ownerId
                 Matter,
                 world,
                 ProjectileRenderer

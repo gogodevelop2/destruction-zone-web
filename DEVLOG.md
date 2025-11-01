@@ -35,6 +35,61 @@
 
 ### 2025년 11월
 
+#### 11월 1일 - 회피 시스템 리팩토링 및 코드 품질 개선 ✅
+**회피 시스템 전면 재설계**
+- 회피 로직 분리: StateMachine → EvasionController 전용 모듈 생성
+- 회피 상태: NONE, RETREATING, COUNTERATTACKING
+- 회피 시작 조건: 2명 이상 공격 OR 후방 공격(105°~180°)
+- 회피 동작: 3초 후진 → 50px 이하 이동 시 반격(1회 시도)
+- 회피 종료: 3초 경과 OR 공격자 없음 OR 반격 실패
+- 중앙화된 종료 로직으로 무한 루프 버그 해결
+
+**AI 발사 시스템 버그 수정**
+- 문제: AI가 4-5발 연속 발사 (단발이어야 함)
+- 원인: `lastFireTime` 설정이 setTimeout 내부에 있어 쿨다운 전 다중 발사
+- 수정: `lastFireTime` 즉시 설정 → setTimeout은 지연만 담당
+- 결과: 정확한 1초 간격 단발 사격 (medium 난이도)
+
+**게임 밸런스 조정**
+- 발사 속도: 2초 → 1초 (medium 난이도)
+- LOS 안전 마진: 5px → 3px (근접 시 LOS 꺼짐 현상 해결)
+- 후방 공격 범위: 150° 중심 → 105°~180° (양쪽 15° 제외한 150°)
+
+**코드 품질 개선**
+- console.log 정리: 24개 제거 (디버그 로그 → debugLog() 메서드만 유지)
+- ACTIVE_WINDOW 중복 정의 문서화 (EvasionController, StateMachine)
+- 향후 난이도별 차별화 계획 주석 추가
+
+**기술적 세부사항:**
+```javascript
+// EvasionController.js (새 파일, 314 lines)
+export class EvasionController {
+    canStart(attackerCount, hasRearAttacker) {
+        return attackerCount >= 2 || hasRearAttacker;
+    }
+
+    update() {
+        // RETREATING: 3초 후진
+        // COUNTERATTACKING: 벽 막힘 시 반격 (1회)
+        // 종료: attackers 초기화
+    }
+}
+
+// AIController.js - 발사 버그 수정
+if (fire && this.canFire(currentTime)) {
+    this.lastFireTime = currentTime;  // ✅ 즉시 설정
+    setTimeout(() => {
+        fireProjectile(this.tank);
+    }, this.difficulty.reactionTime);
+}
+```
+
+**파일 변경:**
+- 신규: `js/systems/ai/EvasionController.js` (314 lines)
+- 수정: `js/systems/ai/StateMachine.js` (457 lines)
+- 수정: `js/systems/ai/AIController.js` (315 lines)
+- 수정: `js/systems/ai/Perception.js` (LOS 마진 3px)
+
 #### 11월 1일 - AI 시스템 대규모 리팩토링 ✅
 **State Machine 단순화 (700줄 → 350줄)**
 - 4-state (PATROL/CHASE/ATTACK/RETREAT) → 3-state (IDLE/PURSUE/ATTACK) 단순화

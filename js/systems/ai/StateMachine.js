@@ -8,6 +8,8 @@
 // - 추적(PURSUE): Navmesh로 벽 우회
 // - 공격(ATTACK): LOS 확보 시에만 발사
 
+import { EvasionController } from './EvasionController.js';
+
 /**
  * AI States (Simplified)
  */
@@ -58,6 +60,9 @@ export class StateMachine {
         this.TARGET_LOST_TIMEOUT = 1000;    // 목표 상실 타임아웃 (1초)
         this.WAYPOINT_REACH_DIST = 30;      // 웨이포인트 도달 거리
         this.TARGET_CHANGE_COOLDOWN = 2000; // 타겟 변경 쿨다운 (2초)
+
+        // 회피 컨트롤러
+        this.evasionController = new EvasionController(tank);
     }
 
     /**
@@ -80,7 +85,6 @@ export class StateMachine {
 
         // 타겟이 죽었으면 즉시 초기화
         if (this.stateData.target && !this.stateData.target.alive) {
-            console.log(`[AI ${this.tank.id}] Target destroyed`);
             this.stateData.target = null;
             this.stateData.path = null;
             this.lastTargetChangeTime = 0; // 쿨다운 리셋
@@ -92,14 +96,12 @@ export class StateMachine {
         if (closestEnemy && closestEnemy.alive) {
             // 타겟이 없으면 즉시 설정
             if (!this.stateData.target) {
-                console.log(`[AI ${this.tank.id}] New target acquired: ${closestEnemy.id}`);
                 this.stateData.target = closestEnemy;
                 this.stateData.path = null;
                 this.lastTargetChangeTime = now;
             }
             // 타겟이 있지만 다른 적으로 변경하려는 경우
             else if (this.stateData.target !== closestEnemy && canChangeTarget) {
-                console.log(`[AI ${this.tank.id}] Target changed: ${this.stateData.target.id} → ${closestEnemy.id}`);
                 this.stateData.target = closestEnemy;
                 this.stateData.path = null;  // 경로 재생성 필요
                 this.lastTargetChangeTime = now;
@@ -119,16 +121,12 @@ export class StateMachine {
 
         // IDLE: 목표 없음
         if (!this.stateData.target) {
-            if (currentState !== AIState.IDLE) {
-                console.log(`[AI ${this.tank.id}] No target -> IDLE`);
-            }
             return AIState.IDLE;
         }
 
         // 목표 상실 타임아웃 체크
         const timeSinceLastSeen = now - this.stateData.lastTargetSeen;
         if (timeSinceLastSeen > this.TARGET_LOST_TIMEOUT) {
-            console.log(`[AI ${this.tank.id}] Target lost (timeout) -> IDLE`);
             this.stateData.target = null;
             this.stateData.path = null;
             return AIState.IDLE;
@@ -142,31 +140,32 @@ export class StateMachine {
             (targetPos.y - myPos.y) ** 2
         );
 
+        // ============================================
+        // 회피 중에는 상태 전환 안 함 (무조건 ATTACK 유지)
+        // ============================================
+        if (this.evasionController.isEvading()) {
+            return AIState.ATTACK;
+        }
+
         // ATTACK: 사거리 내 + LOS 확보
         if (currentState === AIState.ATTACK) {
             // 히스테리시스: ATTACK_RANGE_EXIT 밖으로 나가야 PURSUE로 전환
             if (distToTarget > this.ATTACK_RANGE_EXIT) {
-                console.log(`[AI ${this.tank.id}] Out of range -> PURSUE`);
                 return AIState.PURSUE;
             }
             // LOS 없으면 PURSUE로 (벽 뒤로 숨음)
             if (!perception.hasLOS) {
-                console.log(`[AI ${this.tank.id}] Lost LOS -> PURSUE`);
                 return AIState.PURSUE;
             }
             return AIState.ATTACK;
         } else {
             // PURSUE에서 사거리 내 진입 + LOS 확보 시 ATTACK
             if (distToTarget <= this.ATTACK_RANGE && perception.hasLOS) {
-                console.log(`[AI ${this.tank.id}] In range + LOS -> ATTACK`);
                 return AIState.ATTACK;
             }
         }
 
         // PURSUE: 추적 중
-        if (currentState !== AIState.PURSUE) {
-            console.log(`[AI ${this.tank.id}] Pursuing target ${this.stateData.target.id}`);
-        }
         return AIState.PURSUE;
     }
 
@@ -244,10 +243,8 @@ export class StateMachine {
                 this.stateData.path = newPath;
                 this.stateData.currentWaypointIndex = 0;
                 this.stateData.lastPathGenerated = now;
-                // console.log(`[AI ${this.tank.id}] Path generated: ${newPath.length} waypoints`);
             } else if (needsPath) {
                 // 경로 없으면 직진
-                // console.log(`[AI ${this.tank.id}] No path found, going straight`);
                 this.stateData.path = [targetPos];
                 this.stateData.currentWaypointIndex = 0;
             }
@@ -281,7 +278,6 @@ export class StateMachine {
 
             if (this.stateData.currentWaypointIndex >= this.stateData.path.length) {
                 // 마지막 웨이포인트 도달
-                // console.log(`[AI ${this.tank.id}] Reached final waypoint`);
                 this.stateData.path = null;
                 return { thrust: 0, rotation: 0, fire: false };
             }
@@ -305,6 +301,26 @@ export class StateMachine {
             return { thrust: 0, rotation: 0, fire: false };
         }
 
+        // ============================================
+        // 회피 기동 체크 및 실행
+        // ============================================
+        const attackerCount = this.tank.getActiveAttackerCount();
+        const hasRearAttacker = this.checkRearAttacker();
+
+        // 회피 시작 가능 여부
+        if (this.evasionController.canStart(attackerCount, hasRearAttacker)) {
+            this.evasionController.start();
+        }
+
+        // 회피 중이면 회피 행동 실행
+        const evasionAction = this.evasionController.update();
+        if (evasionAction) {
+            return evasionAction;
+        }
+
+        // ============================================
+        // 정상 공격
+        // ============================================
         const targetPos = this.stateData.target.body.position;
         const myPos = this.tank.body.position;
         const myAngle = this.tank.body.angle;
@@ -367,6 +383,47 @@ export class StateMachine {
         const thrust = Math.abs(angleDiff) < Math.PI / 4 ? 1 : 0; // 45도 이내
 
         return { thrust, rotation, fire: false };
+    }
+
+    /**
+     * 후방 공격자 체크
+     * 105° ~ 180° 범위에서 공격받는지 확인
+     * @returns {boolean} 후방 공격 여부
+     */
+    checkRearAttacker() {
+        const now = Date.now();
+        // NOTE: EvasionController.js에도 동일 값(3000) 정의됨
+        // TODO: 난이도별 차별화 필요 시 DIFFICULTY 객체로 이동 예정
+        const ACTIVE_WINDOW = 3000;  // 공격자 활성 시간 (3초)
+        const myAngle = this.tank.body.angle;
+        const myPos = this.tank.body.position;
+
+        for (const [attackerId, data] of Object.entries(this.tank.attackers)) {
+            const timeSinceHit = now - data.lastHitTime;
+
+            if (timeSinceHit < ACTIVE_WINDOW) {
+                // 공격자 방향 계산
+                const dx = data.lastPos.x - myPos.x;
+                const dy = data.lastPos.y - myPos.y;
+                const attackerAngle = Math.atan2(dy, dx);
+
+                // 각도 차이 계산 (-π ~ π)
+                let angleDiff = attackerAngle - myAngle;
+                while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+                while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+                // 후방 판정: 105° ~ 180° 범위 (180° 중심으로 양쪽 15°씩 제외한 150°)
+                // 0° = 정면, 180° = 정후방
+                const REAR_MIN = Math.PI * 5/12;  // 75° (105°부터 후방 판정)
+                const REAR_MAX = Math.PI;          // 180°
+
+                if (Math.abs(angleDiff) >= REAR_MIN && Math.abs(angleDiff) <= REAR_MAX) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**

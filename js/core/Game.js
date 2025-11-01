@@ -15,7 +15,7 @@ import Tank from '../entities/Tank.js';
 import Projectile from '../entities/Projectile.js';
 import { setupCollisionHandlers } from '../systems/collision.js';
 import { setupKeyboardControls, handleInput, fireProjectile } from '../systems/input.js';
-import { initAI, updateAI } from '../systems/ai.js';
+import { AIManager } from '../systems/ai/AIController.js';
 import { updateUI } from '../ui/hud.js';
 import WallGenerator from '../systems/wallGenerator.js';
 
@@ -37,7 +37,8 @@ export default class Game {
         // Entities
         this.tanks = [];
         this.projectiles = [];
-        this.obstacleWalls = [];
+        this.boundaryWalls = [];    // Boundary walls (arena edges)
+        this.obstacleWalls = [];    // Obstacle walls (procedural)
 
         // Rendering
         this.renderer = null;
@@ -46,6 +47,9 @@ export default class Game {
         // References
         this.playerTank = null;
         this.aiTanks = [];
+
+        // AI System (NEW)
+        this.aiManager = null;
 
         // Game mode
         this.gameMode = this.createGameMode(modeType);
@@ -98,8 +102,22 @@ export default class Game {
         setupKeyboardControls();
         setupCollisionHandlers(this.engine, this, createHitEffect, createProjectileHitParticles);
 
-        // Initialize AI for all non-player tanks
-        this.aiTanks.forEach(tank => initAI(tank));
+        // Initialize NEW AI System
+        this.aiManager = new AIManager(this.Matter, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // Update pathfinding obstacle map (탱크 위치 포함)
+        const allWalls = [...this.boundaryWalls, ...this.obstacleWalls];
+        this.aiManager.updateObstacles(allWalls, this.tanks);
+
+        // Debug: Print grid to console (OLD - Grid-based pathfinding)
+        // console.log('🗺️ Pathfinding Grid (· = walkable, █ = obstacle):');
+        // this.aiManager.pathfinding.debugPrintGrid();
+
+        // Register AI tanks
+        this.aiTanks.forEach(tank => {
+            this.aiManager.registerAI(tank, 'medium');  // Default: medium difficulty
+        });
+        console.log(`✅ AI System initialized: ${this.aiManager.getCount()} AI tanks`);
 
         console.log('✅ Game initialized');
     }
@@ -164,6 +182,7 @@ export default class Game {
             })
         ];
 
+        this.boundaryWalls = walls;
         World.add(this.world, walls);
     }
 
@@ -234,7 +253,8 @@ export default class Game {
                     createExplosion(x, y);
                     // Create explosion particles (sparks)
                     createTankExplosionParticles(x, y);
-                }
+                },
+                i === 0  // First tank is player
             );
             tank.id = `TANK ${i + 1}`;
             this.tanks.push(tank);
@@ -262,18 +282,18 @@ export default class Game {
             );
         }
 
-        // Update AI tanks (mode-based targeting)
-        this.aiTanks.forEach(aiTank => {
-            if (!aiTank.alive) return;
-
-            // Get target from game mode
-            const target = this.gameMode.getAITarget(aiTank, this.tanks);
-
-            if (target) {
-                // Use existing AI logic with mode-provided target
-                updateAI(aiTank, target, deltaTime, (tank) => this.fireProjectileFromTank(tank));
-            }
-        });
+        // Update NEW AI System (10 FPS, staggered)
+        const currentTime = performance.now();
+        const gameState = {
+            tanks: this.tanks,
+            walls: [...this.boundaryWalls, ...this.obstacleWalls],
+            projectiles: this.projectiles
+        };
+        this.aiManager.updateAll(
+            currentTime,
+            gameState,
+            (tank) => this.fireProjectileFromTank(tank)
+        );
 
         // Update all tanks
         this.tanks.forEach(tank => tank.update());

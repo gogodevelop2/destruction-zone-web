@@ -63,10 +63,10 @@ function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, cr
     // Remove projectile
     projectile.destroy();
 
-    console.log('Hit! Damage:', projectile.weaponData.damage,
-        'Weapon:', projectile.weaponData.name,
-        'Tank:', hitTank.id,
-        'Health:', Math.round(hitTank.health));
+    // console.log('Hit! Damage:', projectile.weaponData.damage,
+    //     'Weapon:', projectile.weaponData.name,
+    //     'Tank:', hitTank.id,
+    //     'Health:', Math.round(hitTank.health));
 }
 
 /**
@@ -88,5 +88,5 @@ function handleProjectileWallHit(projectileBody, game, createHitEffect, createPr
     // Remove projectile
     projectile.destroy();
 
-    console.log('Projectile hit wall');
+    // console.log('Projectile hit wall');
 }

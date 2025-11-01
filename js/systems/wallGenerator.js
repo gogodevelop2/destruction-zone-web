@@ -62,10 +62,10 @@ class SpatialHashGrid {
 const DIFFICULTY_PRESETS = {
     easy: {
         obstacleCount: 8,
-        minSize: { width: 15, height: 40 },    // Small, thin walls
-        maxSize: { width: 25, height: 100 },
+        minSize: { width: 15, height: 80 },    // Longer walls (2x height)
+        maxSize: { width: 25, height: 200 },   // 2x height for easy mode
         edgePadding: 60,                       // Tuned: moderate edge margin
-        minSpacing: 110,                       // Tuned: very wide spacing (open arena style)
+        minSpacing: 100,                       // Tuned: wide spacing (open arena style)
         coverageTarget: 0.15,
         cellSize: 80
     },

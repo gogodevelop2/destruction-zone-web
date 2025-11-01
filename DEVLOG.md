@@ -12,9 +12,11 @@
 - **[아키텍처](./docs/devlogs/architecture.md)** - 설계 결정, Matter.js 중심 구조, 리팩토링 계획
 - **[물리 엔진](./docs/devlogs/physics-engine.md)** - Matter.js 통합, 충돌 시스템, 안정성 개선
 - **[렌더링](./docs/devlogs/rendering.md)** - Canvas/PixiJS 하이브리드, 발사체 마이그레이션
+- **[AI 시스템](./docs/devlogs/ai-system.md)** - State Machine, Navmesh, LOS, 디버그 시스템
 
 ### 게임 요소
 - **[비주얼 디자인](./docs/devlogs/visual-design.md)** - TRON 스타일, visualMargin, 네온 효과
+- **[Procedural Walls](./docs/devlogs/procedural-walls.md)** - 그리드 기반 랜덤 벽 생성
 
 ### 개발 과정
 - **[개발 여정](./docs/devlogs/development-journey.md)** - DOS 포팅 → 하이브리드 실패 → Matter.js 재시작
@@ -30,6 +32,68 @@
 ---
 
 ## 📅 최근 활동
+
+### 2025년 11월
+
+#### 11월 1일 - AI 시스템 대규모 리팩토링 ✅
+**State Machine 단순화 (700줄 → 350줄)**
+- 4-state (PATROL/CHASE/ATTACK/RETREAT) → 3-state (IDLE/PURSUE/ATTACK) 단순화
+- PathState 서브스테이트 (NONE/FOLLOWING/COMPLETED) 완전 제거
+- 경로 재생성 쿨다운: 500ms → 200ms (더 반응적)
+- 웨이포인트 도달 거리: 50px → 30px (더 정밀)
+- 조준 정확도: 0.1 rad (6°) → 0.05 rad (3°) 개선
+
+**시야 시스템 재설계**
+- 적 탐지 범위: 600px → Infinity (좌표는 항상 알 수 있음)
+- LOS(Line of Sight) 분리: 추적은 좌표 기반, 공격은 LOS 필요
+- LOS 안전 마진 추가: 5px (벽 모서리 충돌 방지)
+- 벽 모서리 raycast 정밀 검사 (점-직선 거리 계산)
+
+**Navmesh 개선**
+- 삼각형 간격: 80px → 20px (더 정밀한 경로)
+- 마진: 20px → 10px
+- 양방향 벽-삼각형 교차 검사 (벽 꼭짓점 ↔ 삼각형 내부)
+- 경계 포인트 균일 분포 (왜곡된 삼각형 제거)
+- 과도한 안전거리 체크 제거 (45px 버퍼 삭제)
+
+**디버그 시스템 구축**
+- 중앙화된 DebugManager 싱글톤 생성 (`js/systems/DebugManager.js`)
+- D 키 토글: Navmesh + LOS + Tank 중심점 시각화
+- LOS 라인 시각화: 초록색 실선 (확보) / 빨간색 점선 (차단)
+- 키보드 이벤트 충돌 해결 (input.js와 분리)
+
+**코드 정리**
+- 삭제된 파일 (4개):
+  - `LegacyAI.js` - 구 AI 시스템
+  - `SteeringBehavior.js` - Navmesh로 대체
+  - `Pathfinding.js` - 그리드 기반 A* (Navmesh로 대체)
+  - `TacticalPositioning.js` - 미사용 Phase 3 기능
+- DIFFICULTY 설정 단순화 (visionRange, aimAccuracy 제거)
+
+**기술적 세부사항:**
+```javascript
+// 단순화된 State Machine
+AIState = { IDLE, PURSUE, ATTACK }
+
+// LOS 안전 마진 (벽 모서리 감지)
+const SAFE_MARGIN = 5; // 픽셀
+// 점-직선 최단거리 = ||(P-A) - ((P-A)·n̂)n̂||
+
+// 개선된 조준 시스템
+aimThreshold = 0.05 rad; // ~3도
+fire = (Math.abs(angleDiff) < aimThreshold);
+```
+
+**타겟 선택 시스템 개선:**
+- 우선순위: 방향 가중치 거리 → LOS → 포신 정렬 → 랜덤
+- 방향 가중치: 정면 0.7배, 측면 1.0배, 후면 1.5배
+- 타겟 변경 쿨다운: 2초 (우왕좌왕 방지)
+- 포신 정렬 점수: 0° = 1.0, 180° = 0.0
+- 모듈화된 구조: 8개 헬퍼 함수로 분리
+
+**상세**: AI 시스템 아키텍처 변경 및 Navmesh 개선 내역은 [AI_DEVELOPMENT_PLAN.md](./AI_DEVELOPMENT_PLAN.md), [docs/devlogs/ai-system.md](./docs/devlogs/ai-system.md) 참고
+
+---
 
 ### 2025년 10월
 

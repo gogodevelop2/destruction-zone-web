@@ -74,11 +74,7 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA) {
         keys['Digit3'] = false;
     }
 
-    // Debug toggle
-    if (keys['KeyD']) {
-        window.debugMode = !window.debugMode;
-        keys['KeyD'] = false;
-    }
+    // Debug toggle - Moved to Renderer.js (D key)
 }
 
 /**

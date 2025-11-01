@@ -5,12 +5,16 @@
 import Game from './core/Game.js';
 import { PHYSICS } from './config/constants.js';
 import { GAME_MODE } from './config/gameModes.js';
+import { debugManager } from './systems/DebugManager.js';
 
 /**
  * Initialize and start the game
  */
 async function main() {
     console.log('🚀 Starting Destruction Zone...');
+
+    // Initialize debug manager (must be early!)
+    console.log('🔧 Debug Manager initialized (Press D to toggle)');
 
     // Get canvas element
     const canvas = document.getElementById('gameCanvas');

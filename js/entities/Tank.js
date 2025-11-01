@@ -3,6 +3,7 @@
 // ============================================
 
 import { COLLISION_CATEGORY } from '../config/constants.js';
+import { debugManager } from '../systems/DebugManager.js';
 
 /**
  * Tank class - Matter.js wrapper with game logic
@@ -16,11 +17,13 @@ export default class Tank {
      * @param {Matter} Matter - Matter.js library reference
      * @param {Matter.World} world - Matter.js world
      * @param {Function} onDestroy - Callback when tank is destroyed (for particles)
+     * @param {boolean} isPlayer - Whether this is the player tank (default: false)
      */
-    constructor(x, y, config, Matter, world, onDestroy = null) {
+    constructor(x, y, config, Matter, world, onDestroy = null, isPlayer = false) {
         this.Matter = Matter;
         this.world = world;
         this.onDestroy = onDestroy;
+        this.isPlayer = isPlayer;
 
         this.config = {
             size: config.size || 30,
@@ -69,7 +72,8 @@ export default class Tank {
         Matter.Body.setAngle(this.body, angleToCenter);
 
         // Health state (no shield)
-        this.health = this.config.maxHealth;
+        this.maxHealth = this.config.maxHealth;  // Store maxHealth for AI
+        this.health = this.maxHealth;
         this.alive = true;
 
         // Weapon state
@@ -148,9 +152,11 @@ export default class Tank {
             );
         }
 
-        // Reset inputs (will be set by keyboard handler)
-        this.thrust = 0;
-        this.rotation = 0;
+        // Reset inputs (only for player tank, AI controls persist)
+        if (this.isPlayer) {
+            this.thrust = 0;
+            this.rotation = 0;
+        }
     }
 
     /**
@@ -273,7 +279,7 @@ export default class Tank {
         ctx.restore();
 
         // Debug: Physics body outline (if debug mode enabled)
-        if (window.debugMode && this.body.vertices) {
+        if (debugManager.isEnabled() && this.body.vertices) {
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
             ctx.lineWidth = 2;
             ctx.beginPath();

@@ -5,10 +5,13 @@
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
 import { GRID_COLOR, WALL_COLOR } from '../config/colors.js';
 import { Grid, GRID_SIZE } from '../config/grid.js';
+import { debugManager } from '../systems/DebugManager.js';
 
 /**
  * Renderer class - Handles Canvas 2D rendering
  * Does NOT handle PixiJS rendering (projectiles, particles)
+ *
+ * DEBUG MODE: Press 'D' key to toggle (managed by DebugManager)
  */
 export default class Renderer {
     /**
@@ -47,6 +50,11 @@ export default class Renderer {
         // Draw walls
         this.drawWalls(game.obstacleWalls);
 
+        // Draw Navmesh (debug mode only)
+        if (debugManager.isEnabled() && game.aiManager && game.aiManager.navmesh) {
+            game.aiManager.navmesh.debugDraw(ctx);
+        }
+
         // Draw canvas boundary
         this.drawBoundary();
 
@@ -59,6 +67,11 @@ export default class Renderer {
                 tank.render(ctx);
             }
         });
+
+        // Draw LOS lines (debug mode only)
+        if (debugManager.isEnabled()) {
+            this.drawLOSLines(game);
+        }
 
         // Note: Projectiles and particles are rendered by PixiJS automatically
     }
@@ -267,6 +280,64 @@ export default class Renderer {
         ctx.shadowColor = 'rgba(0, 102, 136, 0.3)';
         ctx.shadowBlur = 8;
         ctx.strokeRect(1, 1, this.canvas.width - 2, this.canvas.height - 2);
+        ctx.restore();
+    }
+
+    /**
+     * Draw LOS lines for AI tanks (debug visualization)
+     *
+     * 초록색 실선 = LOS 확보 (공격 가능)
+     * 빨간색 점선 = LOS 차단 (벽에 막힘)
+     *
+     * @param {Object} game - Game state
+     */
+    drawLOSLines(game) {
+        if (!game.aiManager) return;
+
+        const ctx = this.ctx;
+        const controllers = game.aiManager.controllers;
+
+        ctx.save();
+
+        controllers.forEach(controller => {
+            const tank = controller.tank;
+            if (!tank || !tank.alive) return;
+
+            const stateData = controller.stateMachine.getStateData();
+            const target = stateData.target;
+
+            if (!target || !target.alive) return;
+
+            const myPos = tank.body.position;
+            const targetPos = target.body.position;
+
+            // LOS 체크
+            const hasLOS = controller.perception.canSeeTarget(
+                tank,
+                target,
+                game.obstacleWalls
+            );
+
+            // LOS 라인 그리기
+            ctx.beginPath();
+            ctx.moveTo(myPos.x, myPos.y);
+            ctx.lineTo(targetPos.x, targetPos.y);
+
+            if (hasLOS) {
+                // LOS 확보 - 초록색
+                ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+                ctx.lineWidth = 2;
+            } else {
+                // LOS 차단 - 빨간색
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+            }
+
+            ctx.stroke();
+            ctx.setLineDash([]);
+        });
+
         ctx.restore();
     }
 }

@@ -29,7 +29,7 @@ export default class Tank {
             size: config.size || 30,
             thrustPower: config.thrustPower || 0.0003,
             rotationSpeed: config.rotationSpeed || 3.0,
-            density: config.density || 0.08,
+            density: config.density || 0.1,
             friction: config.friction || 0.8,
             frictionAir: config.frictionAir || 0.12,
             color: config.color || '#00ffff',

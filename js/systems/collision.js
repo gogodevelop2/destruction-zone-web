@@ -18,9 +18,9 @@ export function setupCollisionHandlers(engine, game, createHitEffect, createProj
 
             // Check projectile → tank collision
             if (bodyA.label === 'projectile' && bodyB.label === 'tank') {
-                handleProjectileHit(bodyA, bodyB, game, createHitEffect, createProjectileHitParticles);
+                handleProjectileHit(bodyA, bodyB, game, createHitEffect, createProjectileHitParticles, pair);
             } else if (bodyA.label === 'tank' && bodyB.label === 'projectile') {
-                handleProjectileHit(bodyB, bodyA, game, createHitEffect, createProjectileHitParticles);
+                handleProjectileHit(bodyB, bodyA, game, createHitEffect, createProjectileHitParticles, pair);
             }
             // Check projectile → wall collision
             else if (bodyA.label === 'projectile' && (bodyB.label === 'wall' || bodyB.label === 'obstacle_wall')) {
@@ -43,8 +43,9 @@ export function setupCollisionHandlers(engine, game, createHitEffect, createProj
  * @param {Object} game - Game state
  * @param {Function} createHitEffect - Shockwave ring effect callback
  * @param {Function} createProjectileHitParticles - Spark particle effect callback
+ * @param {Object} pair - Collision pair from Matter.js
  */
-function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, createProjectileHitParticles) {
+function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, createProjectileHitParticles, pair) {
     // Find projectile object
     const projectile = game.projectiles.find(p => p.body === projectileBody);
     if (!projectile || !projectile.active) return;
@@ -52,6 +53,20 @@ function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, cr
     // Find which tank was hit
     const hitTank = game.tanks.find(t => t.body === tankBody);
     if (!hitTank || !hitTank.alive) return;
+
+    // DEBUG: Uncomment to log collision data for debugging
+    // if (projectile.type === 'LASER' && projectile.ownerId === 'TANK 1') {
+    //     const collisionPoint = projectileBody.position;
+    //     const tankCenter = tankBody.position;
+    //     const offsetX = collisionPoint.x - tankCenter.x;
+    //     const offsetY = collisionPoint.y - tankCenter.y;
+    //     const offsetDistance = Math.sqrt(offsetX**2 + offsetY**2);
+    //     const separation = pair.separation || 0;
+    //     const normal = pair.collision?.normal || {x: 0, y: 0};
+    //     console.log('Collision offset:', offsetDistance.toFixed(2), 'px');
+    //     console.log('Penetration depth:', Math.abs(separation).toFixed(4), 'px');
+    //     console.log('Collision normal:', `(${normal.x.toFixed(3)}, ${normal.y.toFixed(3)})`);
+    // }
 
     // Find attacker
     const attacker = game.tanks.find(t => t.id === projectile.ownerId);

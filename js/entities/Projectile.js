@@ -37,18 +37,17 @@ export default class Projectile {
         this.ownerId = ownerId;  // Who fired this projectile
 
         // Calculate actual speed (DOS units → web pixels)
-        const SPEED_SCALE_FACTOR = 0.01;  // 200 * 0.01 = 2
+        const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
         const actualSpeed = weaponData.speed * SPEED_SCALE_FACTOR;
 
-        // Laser는 밀도만 낮게 (물리 바디지만 질량 거의 없음)
-        // Missile은 일반 물리 바디 (데미지 + 물리적 충돌)
-        const isLaser = (this.type === 'LASER');
-
-        // Create as physical body with collision filtering
+        // Create physics body (sensor or physical based on weapon type)
+        // isSensor: true = collision detection only (no physical forces)
+        // isSensor: false = full physics collision (applies forces, can push tanks)
+        // Matter.js still detects collisions and fires events for both modes
         this.body = Matter.Bodies.circle(x, y, weaponData.size, {
-            isSensor: false,   // 모두 물리 바디 (충돌 감지)
+            isSensor: weaponData.isSensor ?? false,  // Use weapon-specific isSensor (default: false)
             label: 'projectile',
-            density: isLaser ? 0.001 : 0.4,      // 레이저는 밀도 아주 낮게
+            density: weaponData.density || 0.4,  // Use weapon-specific density
             frictionAir: 0,    // No air resistance
             restitution: 0,    // No bounce
             friction: 0.1,

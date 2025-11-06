@@ -298,18 +298,26 @@ export default class Game {
         // Update all tanks
         this.tanks.forEach(tank => tank.update());
 
-        // Update physics with provided fixed timestep (converted to milliseconds)
-        this.Matter.Engine.update(this.engine, deltaTime * 1000);
+        // === PHYSICS SUB-STEPPING (for high-speed projectile collision) ===
+        // Run physics engine multiple times per frame with smaller timesteps
+        // to reduce tunneling issues with fast projectiles (e.g., LASER at 18 px/frame)
+        const SUBSTEPS = 2;  // 2x physics updates per frame
+        const substepDelta = deltaTime / SUBSTEPS;
 
-        // Update projectiles
-        for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            this.projectiles[i].update(deltaTime);
-            if (!this.projectiles[i].active) {
-                this.projectiles.splice(i, 1);
+        for (let substep = 0; substep < SUBSTEPS; substep++) {
+            // Update physics with smaller timestep (converted to milliseconds)
+            this.Matter.Engine.update(this.engine, substepDelta * 1000);
+
+            // Update projectiles after each substep (collision detection happens here)
+            for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                this.projectiles[i].update(substepDelta);
+                if (!this.projectiles[i].active) {
+                    this.projectiles.splice(i, 1);
+                }
             }
         }
 
-        // Update particles
+        // Update particles (visual effects - no need for substep precision)
         updateParticles(deltaTime);
 
         // Check win condition

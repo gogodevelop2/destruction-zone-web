@@ -20,6 +20,16 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  * Note: High-speed projectiles (e.g., LASER at 18 px/frame) with isSensor=false
  * can cause excessive tank push due to deep penetration (>4px) between physics steps.
  * Setting isSensor=true prevents this while maintaining accurate collision detection.
+ *
+ * === RENDERING SYSTEM ===
+ * renderType: Visual representation type (e.g., 'SHORT_BEAM', 'LONG_BEAM', 'CIRCLE')
+ * renderConfig: Type-specific rendering parameters (length, width, etc.)
+ *
+ * Available render types:
+ * - 'SHORT_BEAM': Short beam projectile (8-10px length)
+ * - 'LONG_BEAM': Long beam projectile (20px length, for lasers)
+ * - 'CIRCLE': Circular projectile (future: traditional missiles)
+ * - More types can be added: 'STAR', 'HEXAGON', 'TRIANGLE', etc.
  */
 export const WEAPON_DATA = {
     MISSILE: {
@@ -33,7 +43,16 @@ export const WEAPON_DATA = {
         lifetime: 3.0,
         size: 2,
         density: 0.4,      // Matter.js density (affects mass and collision impact)
-        isSensor: false    // Physical projectile (can push tanks slightly)
+        isSensor: false,   // Physical projectile (can push tanks slightly)
+
+        // === RENDERING ===
+        renderType: 'SHORT_BEAM',
+        renderConfig: {
+            length: 8,       // Beam length in pixels
+            width: 2,        // Outer beam thickness
+            coreWidth: 1,    // Inner white core thickness
+            hasCore: true    // Display white core for emphasis
+        }
     },
     LASER: {
         name: 'BEAM LASER',
@@ -46,7 +65,16 @@ export const WEAPON_DATA = {
         lifetime: 2.0,
         size: 1.5,
         density: 0.00001,  // Extremely light (light beam, almost massless)
-        isSensor: true     // Energy weapon (no physical impact, prevents excessive push from high-speed penetration)
+        isSensor: true,    // Energy weapon (no physical impact, prevents excessive push from high-speed penetration)
+
+        // === RENDERING ===
+        renderType: 'LONG_BEAM',
+        renderConfig: {
+            length: 20,      // Long beam for laser
+            width: 2,
+            coreWidth: 1,
+            hasCore: true
+        }
     },
     DOUBLE_MISSILE: {
         name: 'DOUBLE MISSILE',
@@ -60,6 +88,15 @@ export const WEAPON_DATA = {
         size: 2,
         density: 0.4,      // Same as MISSILE
         isSensor: false,   // Physical projectile (can push tanks slightly)
-        projectileCount: 2  // Fires 2 projectiles
+        projectileCount: 2,  // Fires 2 projectiles
+
+        // === RENDERING ===
+        renderType: 'SHORT_BEAM',
+        renderConfig: {
+            length: 8,
+            width: 2,
+            coreWidth: 1,
+            hasCore: true
+        }
     }
 };

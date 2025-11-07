@@ -86,6 +86,10 @@ export default class Tank {
         this.weaponEnergy = 100;
         this.weaponRechargeRate = 20; // per second
 
+        // Two-stage weapon state (BLASTER, BREAKER, BOMB)
+        this.activePrimary = null;      // Current active PRIMARY projectile (warhead/bomb)
+        this.canFirePrimary = true;     // Can fire new PRIMARY projectile?
+
         // Score
         this.score = 0;
 
@@ -109,6 +113,11 @@ export default class Tank {
     switchWeapon(weaponType, WEAPON_DATA) {
         if (WEAPON_DATA[weaponType]) {
             this.currentWeapon = weaponType;
+
+            // Reset two-stage weapon state when switching
+            this.activePrimary = null;
+            this.canFirePrimary = true;
+
             console.log(`${this.id} switched to ${WEAPON_DATA[weaponType].name}`);
         } else {
             console.error(`Unknown weapon: ${weaponType}`);

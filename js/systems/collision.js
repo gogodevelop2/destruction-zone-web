@@ -2,6 +2,8 @@
 // Collision System
 // ============================================
 
+import { triggerSecondary } from './projectileEffects.js';
+
 /**
  * Setup collision event handlers for the physics engine
  * @param {Matter.Engine} engine - Matter.js engine
@@ -37,6 +39,43 @@ export function setupCollisionHandlers(engine, game, createHitEffect, createProj
 }
 
 /**
+ * Handle two-stage weapon collision (BLASTER, BREAKER, BOMB)
+ * Triggers SECONDARY projectiles and resets tank state
+ *
+ * @param {Projectile} projectile - PRIMARY projectile that collided
+ * @param {Object} weaponData - Weapon data
+ * @param {Object} game - Game state
+ * @param {Tank|null} attacker - Tank that fired the projectile (can be null if not found)
+ * @param {Object} position - Collision position {x, y}
+ * @param {Function} createHitEffect - Shockwave ring effect callback
+ * @param {Function} createProjectileHitParticles - Spark particle effect callback
+ */
+function handleTwoStageCollision(projectile, weaponData, game, attacker, position, createHitEffect, createProjectileHitParticles) {
+    // Trigger SECONDARY projectiles (split effect)
+    triggerSecondary(
+        projectile,
+        weaponData,
+        game.Matter,
+        game.world,
+        game.projectiles,
+        game.Projectile,
+        game.ProjectileRenderer
+    );
+
+    // Reset tank state to allow firing new PRIMARY
+    if (attacker && attacker.alive) {
+        attacker.activePrimary = null;
+        attacker.canFirePrimary = true;
+    }
+
+    // Create visual effects (PixiJS)
+    createHitEffect(position.x, position.y);
+    createProjectileHitParticles(position.x, position.y);
+
+    // Note: triggerSecondary() already destroys the PRIMARY projectile
+}
+
+/**
  * Handle projectile hitting a tank
  * @param {Matter.Body} projectileBody - Projectile physics body
  * @param {Matter.Body} tankBody - Tank physics body
@@ -54,20 +93,6 @@ function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, cr
     const hitTank = game.tanks.find(t => t.body === tankBody);
     if (!hitTank || !hitTank.alive) return;
 
-    // DEBUG: Uncomment to log collision data for debugging
-    // if (projectile.type === 'LASER' && projectile.ownerId === 'TANK 1') {
-    //     const collisionPoint = projectileBody.position;
-    //     const tankCenter = tankBody.position;
-    //     const offsetX = collisionPoint.x - tankCenter.x;
-    //     const offsetY = collisionPoint.y - tankCenter.y;
-    //     const offsetDistance = Math.sqrt(offsetX**2 + offsetY**2);
-    //     const separation = pair.separation || 0;
-    //     const normal = pair.collision?.normal || {x: 0, y: 0};
-    //     console.log('Collision offset:', offsetDistance.toFixed(2), 'px');
-    //     console.log('Penetration depth:', Math.abs(separation).toFixed(4), 'px');
-    //     console.log('Collision normal:', `(${normal.x.toFixed(3)}, ${normal.y.toFixed(3)})`);
-    // }
-
     // Find attacker
     const attacker = game.tanks.find(t => t.id === projectile.ownerId);
 
@@ -76,20 +101,42 @@ function handleProjectileHit(projectileBody, tankBody, game, createHitEffect, cr
         hitTank.recordHit(attacker.id, attacker.body.position);
     }
 
-    // Apply damage
-    hitTank.takeDamage(projectile.weaponData.damage);
+    // === COLLISION HANDLING LOGIC ===
+    // Two paths:
+    // 1. Two-stage weapon (PRIMARY stage + AUTO/BOTH trigger) → Split into SECONDARY projectiles
+    // 2. Normal projectile → Apply damage and remove
 
-    // Create visual effects (PixiJS)
-    createHitEffect(projectileBody.position.x, projectileBody.position.y);
-    createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+    const weaponData = projectile.weaponData;
+    // Use optional chaining (?.) to safely check weaponData properties
+    // If weaponData is null/undefined, expression evaluates to false (no crash)
+    const shouldAutoTrigger = projectile.stage === 'PRIMARY' &&
+                             weaponData?.projectileType === 'TWO_STAGE' &&
+                             (weaponData?.triggerType === 'AUTO' || weaponData?.triggerType === 'BOTH');
 
-    // Remove projectile
-    projectile.destroy();
+    if (shouldAutoTrigger) {
+        // Path 1: Two-stage weapon auto-trigger
+        handleTwoStageCollision(
+            projectile,
+            weaponData,
+            game,
+            attacker,
+            projectileBody.position,
+            createHitEffect,
+            createProjectileHitParticles
+        );
 
-    // console.log('Hit! Damage:', projectile.weaponData.damage,
-    //     'Weapon:', projectile.weaponData.name,
-    //     'Tank:', hitTank.id,
-    //     'Health:', Math.round(hitTank.health));
+    } else {
+        // Path 2: Normal projectile or MANUAL-only trigger
+        // Apply damage (use projectile.damage, which is already stage-specific)
+        hitTank.takeDamage(projectile.damage);
+
+        // Create visual effects (PixiJS)
+        createHitEffect(projectileBody.position.x, projectileBody.position.y);
+        createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+
+        // Remove projectile
+        projectile.destroy();
+    }
 }
 
 /**
@@ -104,12 +151,40 @@ function handleProjectileWallHit(projectileBody, game, createHitEffect, createPr
     const projectile = game.projectiles.find(p => p.body === projectileBody);
     if (!projectile || !projectile.active) return;
 
-    // Create visual effects (PixiJS)
-    createHitEffect(projectileBody.position.x, projectileBody.position.y);
-    createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+    // === COLLISION HANDLING LOGIC ===
+    // Two paths:
+    // 1. Two-stage weapon (PRIMARY stage + AUTO/BOTH trigger) → Split into SECONDARY projectiles
+    // 2. Normal projectile → Remove on wall hit
 
-    // Remove projectile
-    projectile.destroy();
+    const weaponData = projectile.weaponData;
+    // Use optional chaining (?.) to safely check weaponData properties
+    // If weaponData is null/undefined, expression evaluates to false (no crash)
+    const shouldAutoTrigger = projectile.stage === 'PRIMARY' &&
+                             weaponData?.projectileType === 'TWO_STAGE' &&
+                             (weaponData?.triggerType === 'AUTO' || weaponData?.triggerType === 'BOTH');
 
-    // console.log('Projectile hit wall');
+    if (shouldAutoTrigger) {
+        // Path 1: Two-stage weapon auto-trigger
+        // Find attacker to reset tank state
+        const attacker = game.tanks.find(t => t.id === projectile.ownerId);
+
+        handleTwoStageCollision(
+            projectile,
+            weaponData,
+            game,
+            attacker,
+            projectileBody.position,
+            createHitEffect,
+            createProjectileHitParticles
+        );
+
+    } else {
+        // Path 2: Normal projectile
+        // Create visual effects (PixiJS)
+        createHitEffect(projectileBody.position.x, projectileBody.position.y);
+        createProjectileHitParticles(projectileBody.position.x, projectileBody.position.y);
+
+        // Remove projectile
+        projectile.destroy();
+    }
 }

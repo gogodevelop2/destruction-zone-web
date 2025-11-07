@@ -44,6 +44,10 @@ export default class Game {
         this.renderer = null;
         this.pixiApp = null;
 
+        // Class references (for collision system)
+        this.Projectile = Projectile;
+        this.ProjectileRenderer = ProjectileRenderer;
+
         // References
         this.playerTank = null;
         this.aiTanks = [];
@@ -278,7 +282,12 @@ export default class Game {
             handleInput(
                 this.playerTank,
                 (tank) => this.fireProjectileFromTank(tank),
-                WEAPON_DATA
+                WEAPON_DATA,
+                this.Matter,
+                this.world,
+                this.projectiles,
+                Projectile,
+                ProjectileRenderer
             );
         }
 
@@ -323,7 +332,7 @@ export default class Game {
         // Check win condition
         const result = this.gameMode.checkWinCondition(this.tanks);
         if (result.won) {
-            console.log(`🏆 Winner: ${result.winner}`);
+            // console.log(`🏆 Winner: ${result.winner}`);
             // TODO: Handle game end (pause, show winner screen, etc.)
         }
     }

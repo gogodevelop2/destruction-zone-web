@@ -17,37 +17,53 @@ export default class Projectile {
      * @param {number} x - Spawn X position
      * @param {number} y - Spawn Y position
      * @param {number} angle - Fire angle in radians
-     * @param {Object} weaponData - Weapon configuration
+     * @param {Object} weaponData - Weapon configuration (full weapon data)
      * @param {string} ownerColor - Tank color (for rendering)
      * @param {string} ownerId - Tank ID who fired this projectile
      * @param {Matter} Matter - Matter.js library reference
      * @param {Matter.World} world - Matter.js world
      * @param {Object} ProjectileRenderer - Renderer object for PixiJS sprites
+     * @param {string} stage - Projectile stage: 'NORMAL' | 'PRIMARY' | 'SECONDARY' (default: 'NORMAL')
      */
-    constructor(x, y, angle, weaponData, ownerColor, ownerId, Matter, world, ProjectileRenderer) {
+    constructor(x, y, angle, weaponData, ownerColor, ownerId, Matter, world, ProjectileRenderer, stage = 'NORMAL') {
         this.Matter = Matter;
         this.world = world;
         this.ProjectileRenderer = ProjectileRenderer;
 
+        // === STAGE AND WEAPON REFERENCE ===
+        this.stage = stage;              // 'NORMAL' | 'PRIMARY' | 'SECONDARY'
+        this.weaponData = weaponData;    // Store full weaponData (for triggering SECONDARY later)
+        this.ownerId = ownerId;          // Who fired this projectile
+
+        // Select config based on stage
+        let projectileConfig;
+        if (stage === 'PRIMARY') {
+            projectileConfig = weaponData.primaryProjectile;
+        } else if (stage === 'SECONDARY') {
+            projectileConfig = weaponData.secondaryProjectiles;
+        } else {
+            // NORMAL: Simple weapon, use weaponData directly
+            projectileConfig = weaponData;
+        }
+
         // === PHYSICS SETUP ===
-        // Store weapon data
-        this.weaponData = weaponData;
+        // Extract properties from selected config
         this.type = weaponData.type;
-        this.color = ownerColor || weaponData.color;
-        this.ownerId = ownerId;  // Who fired this projectile
+        this.damage = projectileConfig.damage || projectileConfig.damagePerProjectile;
+        this.color = projectileConfig.color || ownerColor;
 
         // Calculate actual speed (DOS units → web pixels)
         const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
-        const actualSpeed = weaponData.speed * SPEED_SCALE_FACTOR;
+        const actualSpeed = projectileConfig.speed * SPEED_SCALE_FACTOR;
 
         // Create physics body (sensor or physical based on weapon type)
         // isSensor: true = collision detection only (no physical forces)
         // isSensor: false = full physics collision (applies forces, can push tanks)
         // Matter.js still detects collisions and fires events for both modes
-        this.body = Matter.Bodies.circle(x, y, weaponData.size, {
-            isSensor: weaponData.isSensor ?? false,  // Use weapon-specific isSensor (default: false)
+        this.body = Matter.Bodies.circle(x, y, projectileConfig.size, {
+            isSensor: projectileConfig.isSensor ?? false,  // Use weapon-specific isSensor (default: false)
             label: 'projectile',
-            density: weaponData.density || 0.4,  // Use weapon-specific density
+            density: projectileConfig.density || 0.4,  // Use weapon-specific density
             frictionAir: 0,    // No air resistance
             restitution: 0,    // No bounce
             friction: 0.1,
@@ -77,16 +93,17 @@ export default class Projectile {
         // - Current weapons (MISSILE, LASER, DOUBLE_MISSILE, TRIPLE_MISSILE): NO lifetime property
         // - See weapons.js header for full policy documentation
         // ============================================
-        this.lifetime = weaponData.lifetime || null;  // null = infinite lifetime (default)
+        this.lifetime = projectileConfig.lifetime || null;  // null = infinite lifetime (default)
         this.age = 0;
         this.active = true;
 
         // === RENDERING SETUP ===
         // Create PixiJS sprite via ProjectileRenderer
+        // Uses renderType and renderConfig from projectileConfig
         this.pixiSprite = ProjectileRenderer.createGraphics(
-            this.type,
+            projectileConfig.renderType || 'SHORT_BEAM',
             this.color,
-            weaponData
+            projectileConfig  // Includes renderConfig
         );
         this.pixiSprite.position.set(x, y);
 

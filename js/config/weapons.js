@@ -44,6 +44,22 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  * Weapon Data (from original game, speeds in DOS units)
  * Each weapon has damage, energy cost, speed, price, visual properties
  *
+ * === WEAPON TYPES ===
+ * projectileType: 'SIMPLE' | 'TWO_STAGE' (optional, defaults to 'SIMPLE')
+ * - SIMPLE: Single-stage projectile (MISSILE, LASER, etc.)
+ * - TWO_STAGE: Primary → Trigger → Secondary (BLASTER, BREAKER, BOMB)
+ *
+ * For TWO_STAGE weapons:
+ * - triggerType: 'MANUAL' | 'AUTO' | 'BOTH' (required)
+ *   - MANUAL: Fire key triggers split
+ *   - AUTO: Collision triggers split
+ *   - BOTH: Either method triggers split
+ * - primaryProjectile: Config for initial projectile (warhead, bomb)
+ * - secondaryProjectiles: Config for split projectiles (missiles, explosion)
+ *
+ * See: docs/TWO_STAGE_WEAPON_SYSTEM.md for full documentation
+ *
+ * === PHYSICS PROPERTIES ===
  * isSensor property:
  * - false: Physical projectile (applies collision forces, can push tanks)
  * - true: Energy weapon (collision detection only, no physical forces)
@@ -59,7 +75,7 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  * Available render types:
  * - 'SHORT_BEAM': Short beam projectile (8-10px length)
  * - 'LONG_BEAM': Long beam projectile (20px length, for lasers)
- * - 'CIRCLE': Circular projectile (future: traditional missiles)
+ * - 'CIRCLE': Circular projectile (warheads, bombs, traditional missiles)
  * - More types can be added: 'STAR', 'HEXAGON', 'TRIANGLE', etc.
  *
  * === FIRING PATTERN SYSTEM ===
@@ -73,7 +89,7 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  *          /\
  *         /  \
  *        / C  \      C = Center (앞끝)
- *       /      \     L/R = Left/Right (좌우, 중앙보다 3px 뒤, ±6px 간격)
+ *       /      \     L/R = Left/Right (좌우, 중앙보다 5px 뒤, ±6px 간격)
  *      /  L  R  \
  *     /          \
  *    /____________\
@@ -86,7 +102,7 @@ export const WEAPON_DATA = {
         energyCost: 4,
         speed: 5,          // DOS original (5 * 0.4 = 2.0 px/frame)
         price: 2,
-        color: '#ffff00',  // Yellow
+        // color: Uses tank color (no override)
         size: 2,
         density: 0.4,      // Matter.js density (affects mass and collision impact)
         isSensor: false,   // Physical projectile (can push tanks slightly)
@@ -110,7 +126,7 @@ export const WEAPON_DATA = {
         energyCost: 6,
         speed: 45,         // DOS original (45 * 0.4 = 18.0 px/frame, 9x faster than MISSILE)
         price: 150,
-        color: '#ff0000',  // Red
+        // color: Uses tank color (no override)
         size: 1.5,
         density: 0.00001,  // Extremely light (light beam, almost massless)
         isSensor: true,    // Energy weapon (no physical impact, prevents excessive push from high-speed penetration)
@@ -134,7 +150,7 @@ export const WEAPON_DATA = {
         energyCost: 4,
         speed: 6,          // DOS original (6 * 0.4 = 2.4 px/frame, 1.2x faster than MISSILE)
         price: 100,
-        color: '#ffff00',  // Yellow
+        // color: Uses tank color (no override)
         size: 2,
         density: 0.4,      // Same as MISSILE
         isSensor: false,   // Physical projectile (can push tanks slightly)
@@ -158,7 +174,7 @@ export const WEAPON_DATA = {
         energyCost: 6,
         speed: 7,          // DOS original (7 * 0.4 = 2.8 px/frame, 1.4x faster than MISSILE)
         price: 600,
-        color: '#ff8800',  // Orange
+        // color: Uses tank color (no override)
         size: 2,           // Same as MISSILE
         density: 0.4,
         isSensor: false,   // Physical projectile (can push tanks slightly)
@@ -182,7 +198,7 @@ export const WEAPON_DATA = {
         energyCost: 6,     // Same as single LASER (DOS: "using energy of only one")
         speed: 45,         // DOS original (45 * 0.4 = 18.0 px/frame, 9x faster than MISSILE)
         price: 1650,       // DOS original
-        color: '#ff0000',  // Red (same as LASER)
+        // color: Uses tank color (no override)
         size: 1.5,
         density: 0.00001,  // Extremely light (light beam, almost massless)
         isSensor: true,    // Energy weapon (no physical impact, prevents excessive push from high-speed penetration)
@@ -197,6 +213,59 @@ export const WEAPON_DATA = {
             width: 2,
             coreWidth: 1,
             hasCore: true
+        }
+    },
+
+    // === TWO-STAGE WEAPONS ===
+    // These weapons fire a PRIMARY projectile (warhead) that splits into SECONDARY projectiles
+
+    BLASTER: {
+        name: 'BLASTER',
+        type: 'BLASTER',
+        energyCost: 22,        // DOS original
+        price: 650,            // DOS original
+
+        // === TWO-STAGE CONFIG ===
+        projectileType: 'TWO_STAGE',
+        triggerType: 'BOTH',   // Can trigger via fire key (MANUAL) or collision (AUTO)
+
+        // === PRIMARY PROJECTILE (Warhead) ===
+        primaryProjectile: {
+            damage: 0,         // Warhead itself does no damage (only SECONDARY missiles do damage)
+            speed: 12,         // DOS original (12 * 0.4 = 4.8 px/frame, 2.4x faster than MISSILE)
+            size: 1.5,         // 1.5px radius = 3px diameter
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,   // Physical projectile
+            firePattern: 'CENTER',  // Single warhead from center
+
+            // Rendering: Circular warhead
+            renderType: 'CIRCLE',
+            renderConfig: {
+                radius: 1.5,       // 1.5px radius = 3px diameter
+                fillAlpha: 1,
+                hasOutline: false
+            }
+        },
+
+        // === SECONDARY PROJECTILES (Split missiles) ===
+        secondaryProjectiles: {
+            damage: 7.5,       // 90 total / 12 missiles = 7.5 damage each
+            speed: 5,          // DOS original (5 * 0.4 = 2.0 px/frame, same as basic MISSILE)
+            size: 2,           // Same as MISSILE
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,
+
+            // Split pattern
+            pattern: 'CIRCLE',      // 360° spread (all directions)
+            count: 12,              // 12 missiles in circle
+
+            // Rendering: Small circular projectile
+            renderType: 'SMALL_CIRCLE',
+            renderConfig: {
+                radius: 1           // 1px radius = 2px diameter
+            }
         }
     }
 

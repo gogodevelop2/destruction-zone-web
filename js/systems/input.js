@@ -2,6 +2,8 @@
 // Input System
 // ============================================
 
+import { triggerSecondary } from './projectileEffects.js';
+
 // Keyboard state
 const keys = {};
 
@@ -36,8 +38,13 @@ export function setupKeyboardControls() {
  * @param {Tank} playerTank - Player tank object
  * @param {Function} fireProjectile - Callback to fire projectile
  * @param {Object} WEAPON_DATA - Weapon data registry
+ * @param {Matter} Matter - Matter.js library reference
+ * @param {Matter.World} world - Matter.js world
+ * @param {Array} projectiles - Projectiles array
+ * @param {Class} Projectile - Projectile class constructor
+ * @param {Object} ProjectileRenderer - Projectile renderer
  */
-export function handleInput(playerTank, fireProjectile, WEAPON_DATA) {
+export function handleInput(playerTank, fireProjectile, WEAPON_DATA, Matter, world, projectiles, Projectile, ProjectileRenderer) {
     // Thrust
     if (keys['ArrowUp']) {
         playerTank.thrust = 1;
@@ -56,11 +63,20 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA) {
 
     // Fire projectile (Space key)
     if (keys['Space'] && !keys['Space_fired']) {
-        fireProjectile(playerTank);
+        const weaponData = WEAPON_DATA[playerTank.currentWeapon];
+
+        if (!weaponData.projectileType || weaponData.projectileType === 'SIMPLE') {
+            // Simple weapon: Use existing fireProjectile()
+            fireProjectile(playerTank);
+        } else if (weaponData.projectileType === 'TWO_STAGE') {
+            // Two-stage weapon: Toggle fire/trigger
+            fireTwoStageWeapon(playerTank, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer);
+        }
+
         keys['Space_fired'] = true;
     }
 
-    // Weapon switching (1, 2, 3, 4, 5 keys)
+    // Weapon switching (1, 2, 3, 4, 5, 6 keys)
     if (keys['Digit1']) {
         playerTank.switchWeapon('MISSILE', WEAPON_DATA);
         keys['Digit1'] = false;
@@ -80,6 +96,10 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA) {
     if (keys['Digit5']) {
         playerTank.switchWeapon('POWER_LASER', WEAPON_DATA);
         keys['Digit5'] = false;
+    }
+    if (keys['Digit6']) {
+        playerTank.switchWeapon('BLASTER', WEAPON_DATA);
+        keys['Digit6'] = false;
     }
 
     // Debug toggle - Moved to Renderer.js (D key)
@@ -129,6 +149,82 @@ function getFirePoints(tank, firePattern) {
     }
 
     return points;
+}
+
+/**
+ * Handle two-stage weapon firing (BLASTER, BREAKER, BOMB)
+ * Fire key toggles between PRIMARY fire and SECONDARY trigger
+ * @param {Tank} tank - Tank firing the weapon
+ * @param {Object} weaponData - Weapon data
+ * @param {Matter} Matter - Matter.js library reference
+ * @param {Matter.World} world - Matter.js world
+ * @param {Array} projectiles - Projectiles array
+ * @param {Class} Projectile - Projectile class constructor
+ * @param {Object} ProjectileRenderer - Projectile renderer
+ */
+function fireTwoStageWeapon(tank, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer) {
+    if (tank.activePrimary) {
+        // MODE 2: Trigger existing PRIMARY → Create SECONDARY
+        triggerSecondary(tank.activePrimary, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer);
+
+        // Reset state
+        tank.activePrimary = null;
+        tank.canFirePrimary = true;
+
+    } else if (tank.canFirePrimary) {
+        // MODE 1: Fire new PRIMARY
+
+        // Check energy
+        if (tank.weaponEnergy < weaponData.energyCost) {
+            return; // Not enough energy
+        }
+
+        // Consume energy
+        tank.weaponEnergy -= weaponData.energyCost;
+
+        // Fire PRIMARY projectile
+        const primary = firePrimaryProjectile(tank, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer);
+
+        // Update state
+        tank.activePrimary = primary;
+        tank.canFirePrimary = false;
+    }
+}
+
+/**
+ * Fire PRIMARY projectile (warhead, bomb)
+ * @param {Tank} tank - Tank firing the weapon
+ * @param {Object} weaponData - Weapon data
+ * @param {Matter} Matter - Matter.js reference
+ * @param {Matter.World} world - Matter.js world
+ * @param {Array} projectiles - Projectiles array
+ * @param {Class} Projectile - Projectile class
+ * @param {Object} ProjectileRenderer - Projectile renderer
+ * @returns {Projectile} The created PRIMARY projectile
+ */
+function firePrimaryProjectile(tank, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer) {
+    const primaryConfig = weaponData.primaryProjectile;
+    const firePattern = primaryConfig.firePattern || 'CENTER';
+    const firePoints = getFirePoints(tank, firePattern);
+
+    // PRIMARY usually fires 1 projectile (but firePattern supported)
+    const point = firePoints[0];
+
+    const projectile = new Projectile(
+        point.x,
+        point.y,
+        tank.body.angle,
+        weaponData,              // Full weaponData (not just primaryConfig)
+        tank.config.color,
+        tank.id,
+        Matter,
+        world,
+        ProjectileRenderer,
+        'PRIMARY'                // Stage parameter
+    );
+
+    projectiles.push(projectile);
+    return projectile;
 }
 
 /**

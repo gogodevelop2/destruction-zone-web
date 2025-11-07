@@ -81,17 +81,63 @@ const ProjectileRenderer = {
                 graphics.moveTo(-length/2, 0);
                 graphics.lineTo(length/2, 0);
             }
+        },
+
+        /**
+         * CIRCLE: Circular projectile (current: BLASTER warheads, BOMB)
+         * Config: { radius, fillAlpha, hasOutline, hasGlow }
+         */
+        'CIRCLE': (graphics, color, config) => {
+            const colorHex = parseInt(color.replace('#', ''), 16);
+            const radius = config.radius || 3;
+            const fillAlpha = config.fillAlpha !== undefined ? config.fillAlpha : 1;
+
+            // Optional glow effect (for warheads) - Draw first as background layer
+            if (config.hasGlow) {
+                // Create separate graphics for glow layer
+                const glowGraphics = new PIXI.Graphics();
+                glowGraphics.beginFill(colorHex, 0.8);  // Semi-transparent for glow
+                glowGraphics.drawCircle(0, 0, radius * 1.5);  // Slightly larger
+                glowGraphics.endFill();
+
+                // Apply blur filter only to glow layer
+                const blurFilter = new PIXI.filters.BlurFilter();
+                blurFilter.blur = 2;
+                blurFilter.quality = 2;
+                glowGraphics.filters = [blurFilter];
+
+                // Add glow layer to main graphics
+                graphics.addChild(glowGraphics);
+            }
+
+            // Draw solid core (sharp, no blur)
+            graphics.beginFill(colorHex, fillAlpha);
+            graphics.drawCircle(0, 0, radius);
+            graphics.endFill();
+
+            // Optional white outline (for warheads)
+            if (config.hasOutline) {
+                graphics.lineStyle(1, 0xffffff, 0.8);
+                graphics.drawCircle(0, 0, radius);
+            }
+        },
+
+        /**
+         * SMALL_CIRCLE: Small circular projectile (current: BLASTER secondary missiles)
+         * Config: { radius }
+         */
+        'SMALL_CIRCLE': (graphics, color, config) => {
+            const colorHex = parseInt(color.replace('#', ''), 16);
+            const radius = config.radius || 1;  // Default 1px radius (2px diameter)
+
+            // Solid filled circle
+            graphics.beginFill(colorHex, 1);
+            graphics.drawCircle(0, 0, radius);
+            graphics.endFill();
         }
 
         // === FUTURE RENDER TYPES (Not implemented yet) ===
         // Add new types here when needed. Examples:
-        //
-        // 'CIRCLE': (graphics, color, config) => {
-        //     const colorHex = parseInt(color.replace('#', ''), 16);
-        //     graphics.beginFill(colorHex, config.fillAlpha || 1);
-        //     graphics.drawCircle(0, 0, config.radius || 2);
-        //     graphics.endFill();
-        // },
         //
         // 'STAR': (graphics, color, config) => {
         //     const colorHex = parseInt(color.replace('#', ''), 16);

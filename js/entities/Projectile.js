@@ -66,7 +66,18 @@ export default class Projectile {
 
         Matter.World.add(world, this.body);
 
-        this.lifetime = weaponData.lifetime;
+        // ============================================
+        // LIFETIME POLICY (IMPORTANT - DO NOT CHANGE WITHOUT EXPLICIT REQUEST)
+        // ============================================
+        // - DOS original had NO lifetime limit (projectiles fly until off-screen)
+        // - Current implementation: lifetime is OPTIONAL
+        // - Default behavior: weaponData.lifetime undefined → this.lifetime = null → infinite flight
+        // - Only add lifetime to weaponData when EXPLICITLY requested for special weapons
+        // - Example special case: weaponData.lifetime = 2.0 → expires after 2 seconds
+        // - Current weapons (MISSILE, LASER, DOUBLE_MISSILE, TRIPLE_MISSILE): NO lifetime property
+        // - See weapons.js header for full policy documentation
+        // ============================================
+        this.lifetime = weaponData.lifetime || null;  // null = infinite lifetime (default)
         this.age = 0;
         this.active = true;
 
@@ -103,8 +114,9 @@ export default class Projectile {
             this.pixiSprite.rotation = angle;
         }
 
-        // Remove if too old or out of bounds
-        if (this.age >= this.lifetime || this.isOutOfBounds()) {
+        // Remove if out of bounds (always check)
+        // or if lifetime expired (only if lifetime is set)
+        if (this.isOutOfBounds() || (this.lifetime && this.age >= this.lifetime)) {
             this.destroy();
         }
     }

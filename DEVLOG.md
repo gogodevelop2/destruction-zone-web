@@ -35,6 +35,116 @@
 
 ### 2025년 11월
 
+#### 11월 7일 - Two-Stage Weapon System 완성 ✅
+**BLASTER 무기 구현 (PRIMARY/SECONDARY 시스템)**
+- Two-stage lifecycle: PRIMARY (warhead) → TRIGGER (manual/auto) → SECONDARY (split missiles)
+- BLASTER 무기: 360° CIRCLE 패턴, 12발 분열 미사일
+- Pattern system: RADIAL (arc), CIRCLE (360°), SWIRL (rotating)
+- Trigger types: MANUAL (fire key), AUTO (collision), BOTH
+
+**렌더링 확장**
+- CIRCLE render type: 원형 탄두 (3px diameter)
+- SMALL_CIRCLE render type: 작은 원형 미사일 (2px diameter)
+- 모든 무기 색상: 탱크 색상 자동 상속
+
+**Tank 상태 관리**
+- activePrimary: 현재 활성 PRIMARY 추적
+- canFirePrimary: PRIMARY 발사 가능 여부
+- 무기 전환시 상태 초기화
+
+**충돌 시스템 확장**
+- handleTwoStageCollision() 함수로 로직 통합
+- Tank/Wall 충돌 모두 지원
+- AUTO trigger: 충돌시 자동 분열
+- Optional chaining (?.) 으로 null safety
+
+**코드 품질 개선**
+- 중복 코드 제거: 40줄 → 8줄 함수 호출
+- 디버그 로그 정리 (production-ready)
+- 상세 주석 추가 (collision logic paths)
+
+**기술적 세부사항:**
+```javascript
+// projectileEffects.js - 패턴 시스템
+export function triggerSecondary(primaryProjectile, weaponData, ...) {
+    const pattern = secondaryConfig.pattern; // RADIAL/CIRCLE/SWIRL
+    const spawnData = createPattern(pattern, pos, vel, count);
+    // Create SECONDARY projectiles
+}
+
+// collision.js - Two-stage 로직
+const shouldAutoTrigger =
+    projectile.stage === 'PRIMARY' &&
+    weaponData?.projectileType === 'TWO_STAGE' &&
+    (weaponData?.triggerType === 'AUTO' || weaponData?.triggerType === 'BOTH');
+
+// input.js - Fire state machine
+if (tank.activePrimary) {
+    triggerSecondary(tank.activePrimary, ...);  // MODE 2: Trigger
+} else if (tank.canFirePrimary) {
+    tank.activePrimary = firePrimaryProjectile(...);  // MODE 1: Fire
+}
+```
+
+**파일 변경:**
+- 신규: `js/systems/projectileEffects.js` (169 lines) - 패턴 시스템
+- 신규: `docs/TWO_STAGE_WEAPON_SYSTEM.md` (1,400+ lines) - 완전한 설계 문서
+- 수정: `js/systems/collision.js` - Two-stage 로직, 리팩토링
+- 수정: `js/systems/input.js` - Fire state machine
+- 수정: `js/entities/Tank.js` - Two-stage 상태 추가
+- 수정: `js/entities/Projectile.js` - Stage 파라미터
+- 수정: `js/core/ProjectileRenderer.js` - CIRCLE/SMALL_CIRCLE
+- 수정: `js/config/weapons.js` - BLASTER 데이터
+
+**상세:** TWO_STAGE_WEAPON_SYSTEM 설계 및 구현 차이점은 [docs/TWO_STAGE_WEAPON_SYSTEM.md](./docs/TWO_STAGE_WEAPON_SYSTEM.md) 참고
+
+#### 11월 6일 - 무기 시스템 대규모 확장 ✅
+**새 무기 구현**
+- TRIPLE_MISSILE: 3발 동시 발사 (firePattern: 'ALL')
+  - 중앙 + 좌우 3점 발사
+  - 각 3 데미지 (총 9 데미지)
+  - 속도: 2.8 px/frame (MISSILE 대비 1.4배)
+- POWER_LASER: 듀얼 레이저 (firePattern: 'SIDES')
+  - 좌우 2발 동시 발사
+  - 각 6 데미지 (총 12 데미지)
+  - 에너지 비용: 6 (단일 LASER와 동일, DOS 원본)
+
+**Firing Pattern System**
+- Fire point layout: CENTER (앞끝), LEFT/RIGHT (좌우 5px 뒤, ±6px 간격)
+- Pattern types:
+  - 'CENTER': 단발 (MISSILE, LASER, BLASTER)
+  - 'SIDES': 좌우 2발 (DOUBLE_MISSILE, POWER_LASER)
+  - 'ALL': 3발 (TRIPLE_MISSILE)
+- getFirePoints() 함수로 발사 위치 계산
+
+**Render Type System**
+- 전략 패턴 적용: renderHandlers map
+- SHORT_BEAM: 짧은 빔 (8px, missiles)
+- LONG_BEAM: 긴 빔 (20px, lasers)
+- 확장 용이: 새 타입 추가 = 핸들러 함수 1개
+
+**무기별 물리 속성**
+- isSensor 속성:
+  - false: 물리 발사체 (약간 밀림, MISSILE)
+  - true: 에너지 무기 (관통, LASER)
+- density 설정:
+  - 0.4: 일반 미사일 (적당한 충돌)
+  - 0.00001: 레이저 (거의 무게 없음)
+- 고속 발사체 + isSensor=false 문제 해결
+  - LASER 18 px/frame: 깊은 관통 → 과도한 밀림
+  - isSensor=true로 해결
+
+**물리 안정성 개선**
+- 회전 및 벽 충돌 동작 조정
+- Sub-stepping 제거 (불필요)
+- Matter.js 기본 설정으로 안정적 동작 확인
+
+**파일 변경:**
+- 수정: `js/config/weapons.js` - TRIPLE_MISSILE, POWER_LASER 추가
+- 수정: `js/systems/input.js` - getFirePoints(), firing pattern 로직
+- 수정: `js/core/Game.js` - fireProjectileFromTank() 다중 발사 지원
+- 수정: `js/core/ProjectileRenderer.js` - 전략 패턴, SHORT/LONG_BEAM
+
 #### 11월 1일 - 회피 시스템 리팩토링 및 코드 품질 개선 ✅
 **회피 시스템 전면 재설계**
 - 회피 로직 분리: StateMachine → EvasionController 전용 모듈 생성

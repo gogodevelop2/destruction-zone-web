@@ -4,6 +4,40 @@
 
 ---
 
+## 2025년 11월
+
+### 2025-11-07
+- **feat**: Two-stage weapon system 완성 (c53d84e)
+  - PRIMARY → TRIGGER → SECONDARY 시스템
+  - Pattern system (RADIAL, CIRCLE, SWIRL)
+  - BLASTER 무기: 360° split, 12 missiles
+  - 새 render types: CIRCLE, SMALL_CIRCLE
+  - 새 파일: js/systems/projectileEffects.js
+  - Code quality 개선 (리팩토링, null safety)
+- **docs**: TWO_STAGE_WEAPON_SYSTEM.md 작성 (1,400+ lines)
+
+### 2025-11-06
+- **feat**: Firing pattern system 및 새 무기 추가 (176b7b9)
+  - TRIPLE_MISSILE (firePattern: 'ALL')
+  - POWER_LASER (firePattern: 'SIDES')
+  - Fire point system (CENTER/SIDES/ALL)
+- **feat**: Render type system 구현 (2689459)
+  - ProjectileRenderer에 전략 패턴 적용
+  - SHORT_BEAM, LONG_BEAM 핸들러
+- **feat**: 무기별 물리 속성 시스템 (25167de)
+  - isSensor 속성 (물리/에너지 무기 구분)
+  - density 설정 (충돌 임팩트 제어)
+- **fix**: 물리 안정성 개선 (7507d43)
+  - 회전 및 벽 충돌 동작 조정
+
+### 2025-11-01
+- **feat**: 회피 시스템 리팩토링 (79a33aa)
+  - EvasionController 모듈 분리
+  - AI 발사 버그 수정 (다중 발사 방지)
+  - 게임 밸런스 조정
+
+---
+
 ## 2025년 10월
 
 ### 2025-10-30

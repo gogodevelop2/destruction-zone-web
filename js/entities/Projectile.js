@@ -97,6 +97,29 @@ export default class Projectile {
         this.age = 0;
         this.active = true;
 
+        // === GUIDED SYSTEM ===
+        this.isGuided = projectileConfig.isGuided || false;
+        this.guidedConfig = projectileConfig.guidedConfig || null;
+
+        if (this.isGuided) {
+            this.currentTarget = null;           // 현재 추적 중인 타겟
+            this.targetUpdateCounter = 0;        // 타겟 업데이트 카운터
+        }
+
+        // === TRAIL SYSTEM ===
+        this.hasTrail = projectileConfig.hasTrail || false;
+        this.trailConfig = projectileConfig.trailConfig || null;
+
+        if (this.hasTrail) {
+            this.trail = {
+                positions: [],                    // Array of {x, y, alpha}
+                maxLength: this.trailConfig?.maxLength || 8,
+                fadeRate: this.trailConfig?.fadeRate || 0.12,
+                spacing: this.trailConfig?.spacing || 0  // 0 = record every frame
+            };
+            this.trailDistanceCounter = 0;        // For spacing control
+        }
+
         // === RENDERING SETUP ===
         // Create PixiJS sprite via ProjectileRenderer
         // Uses renderType and renderConfig from projectileConfig
@@ -121,6 +144,10 @@ export default class Projectile {
     update(deltaTime) {
         this.age += deltaTime;
 
+        // === GUIDED BEHAVIOR ===
+        // Guided logic is handled by guidedSystem.js (integrated in Game.js)
+        // No projectile-level logic needed here
+
         // Sync PixiJS sprite position/rotation with physics body
         if (this.pixiSprite) {
             const pos = this.body.position;
@@ -129,6 +156,16 @@ export default class Projectile {
 
             this.pixiSprite.position.set(pos.x, pos.y);
             this.pixiSprite.rotation = angle;
+        }
+
+        // === TRAIL UPDATE ===
+        if (this.hasTrail && this.active) {
+            this.updateTrail();
+
+            // Update trail graphics via renderer
+            if (this.pixiSprite && this.trail.positions.length > 0) {
+                this.ProjectileRenderer.updateTrail(this.pixiSprite, this.trail.positions);
+            }
         }
 
         // Remove if out of bounds (always check)
@@ -145,6 +182,61 @@ export default class Projectile {
     isOutOfBounds() {
         const pos = this.body.position;
         return pos.x < 0 || pos.x > CANVAS_WIDTH || pos.y < 0 || pos.y > CANVAS_HEIGHT;
+    }
+
+    /**
+     * Update trail positions and fade
+     * Records current position and applies fade-out effect
+     */
+    updateTrail() {
+        const pos = this.body.position;
+        const spacing = this.trail.spacing;
+
+        // Check if we should record new position (based on spacing)
+        if (spacing > 0) {
+            // Calculate distance from last recorded position
+            const lastPos = this.trail.positions[0];
+            if (lastPos) {
+                const dx = pos.x - lastPos.x;
+                const dy = pos.y - lastPos.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                this.trailDistanceCounter += dist;
+            } else {
+                // First trail point, always record
+                this.trailDistanceCounter = spacing;  // Force record on first update
+            }
+
+            // Only record if distance threshold met
+            if (this.trailDistanceCounter < spacing) {
+                return;
+            }
+            this.trailDistanceCounter = 0;
+        }
+
+        // Add current position to trail (start with initial alpha from config)
+        // Store velocity for angle calculation (for line-based trails)
+        const vel = this.body.velocity;
+        const angle = Math.atan2(vel.y, vel.x);
+        const initialAlpha = this.trailConfig?.initialAlpha || 0.6;  // Default 0.6 (60% opacity)
+        this.trail.positions.unshift({
+            x: pos.x,
+            y: pos.y,
+            angle: angle,  // Store angle for line-based trail rendering
+            alpha: initialAlpha
+        });
+
+        // Limit trail length
+        if (this.trail.positions.length > this.trail.maxLength) {
+            this.trail.positions.pop();
+        }
+
+        // Fade out existing trail positions
+        for (let i = 1; i < this.trail.positions.length; i++) {
+            this.trail.positions[i].alpha -= this.trail.fadeRate;
+            if (this.trail.positions[i].alpha < 0) {
+                this.trail.positions[i].alpha = 0;
+            }
+        }
     }
 
     /**

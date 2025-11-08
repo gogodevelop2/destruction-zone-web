@@ -18,6 +18,7 @@ import { setupKeyboardControls, handleInput, fireProjectile } from '../systems/i
 import { AIManager } from '../systems/ai/AIController.js';
 import { updateUI } from '../ui/hud.js';
 import WallGenerator from '../systems/wallGenerator.js';
+import { GuidedSystem } from '../systems/guidedSystem.js';
 
 /**
  * Main Game class - Coordinates all game systems
@@ -54,6 +55,9 @@ export default class Game {
 
         // AI System (NEW)
         this.aiManager = null;
+
+        // Guided System
+        this.guidedSystem = null;
 
         // Game mode
         this.gameMode = this.createGameMode(modeType);
@@ -92,6 +96,9 @@ export default class Game {
 
         // Create physics world
         this.createPhysicsWorld();
+
+        // Initialize Guided System
+        this.guidedSystem = new GuidedSystem(this);
 
         // Create walls
         this.createWalls();
@@ -319,7 +326,12 @@ export default class Game {
 
             // Update projectiles after each substep (collision detection happens here)
             for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                // Update guided projectile targeting and direction
+                this.guidedSystem.updateProjectile(this.projectiles[i], substepDelta);
+
+                // Update projectile position and lifetime
                 this.projectiles[i].update(substepDelta);
+
                 if (!this.projectiles[i].active) {
                     this.projectiles.splice(i, 1);
                 }

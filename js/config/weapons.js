@@ -41,6 +41,53 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  */
 
 /**
+ * ============================================
+ * RENDER CONFIG SYSTEM (IMPORTANT - READ BEFORE MODIFYING)
+ * ============================================
+ *
+ * DESIGN DECISION (Option B - Individual Control):
+ * Each weapon explicitly specifies its own renderConfig.
+ * Renderer default values are FALLBACK ONLY (safety net).
+ *
+ * STRUCTURE:
+ *   MISSILE: {
+ *       renderType: 'SHORT_BEAM',
+ *       renderConfig: {
+ *           length: 6,     // ← Each weapon specifies its own values
+ *           width: 2,
+ *           coreWidth: 1,
+ *           hasCore: true
+ *       }
+ *   }
+ *
+ * HOW IT WORKS:
+ * 1. Projectile reads renderConfig from weapon data
+ * 2. ProjectileRenderer uses these values
+ * 3. If a value is missing, renderer uses default (|| operator)
+ *
+ * TO CHANGE A SPECIFIC WEAPON:
+ * - Modify that weapon's renderConfig in this file
+ * - Example: Change GUIDED length to 8
+ *
+ * TO CHANGE ALL SHORT_BEAM WEAPONS:
+ * - Update renderConfig for each SHORT_BEAM weapon individually
+ * - Example: MISSILE, DOUBLE_MISSILE, TRIPLE_MISSILE, GUIDED
+ *
+ * RENDERER DEFAULTS (ProjectileRenderer.js):
+ * - These are FALLBACK values only
+ * - Used when renderConfig is missing or incomplete
+ * - DO NOT control normal weapon appearance
+ *
+ * ALTERNATIVE (Not implemented):
+ * - Remove all renderConfig from weapons
+ * - Use renderer defaults as single source of truth
+ * - One change affects all weapons of same type
+ *
+ * ⚠️  Current design allows per-weapon customization!
+ * ============================================
+ */
+
+/**
  * Weapon Data (from original game, speeds in DOS units)
  * Each weapon has damage, energy cost, speed, price, visual properties
  *
@@ -113,7 +160,7 @@ export const WEAPON_DATA = {
         // === RENDERING ===
         renderType: 'SHORT_BEAM',
         renderConfig: {
-            length: 8,       // Beam length in pixels
+            length: 6,       // Beam length in pixels (shortened)
             width: 2,        // Outer beam thickness
             coreWidth: 1,    // Inner white core thickness
             hasCore: true    // Display white core for emphasis
@@ -161,7 +208,7 @@ export const WEAPON_DATA = {
         // === RENDERING ===
         renderType: 'SHORT_BEAM',
         renderConfig: {
-            length: 8,
+            length: 6,       // Beam length in pixels (shortened)
             width: 2,
             coreWidth: 1,
             hasCore: true
@@ -185,7 +232,7 @@ export const WEAPON_DATA = {
         // === RENDERING ===
         renderType: 'SHORT_BEAM',
         renderConfig: {
-            length: 8,       // Same visual size as MISSILE
+            length: 6,       // Same visual size as MISSILE (shortened)
             width: 2,
             coreWidth: 1,
             hasCore: true
@@ -256,6 +303,7 @@ export const WEAPON_DATA = {
             // color: Uses tank color (no override)
             density: 0.4,
             isSensor: false,
+            lifetime: 2.0,     // 2 seconds (2.0 px/frame × 60 fps × 2s = 240px range)
 
             // Split pattern
             pattern: 'CIRCLE',      // 360° spread (all directions)
@@ -266,6 +314,54 @@ export const WEAPON_DATA = {
             renderConfig: {
                 radius: 1           // 1px radius = 2px diameter
             }
+        }
+    },
+
+    // === GUIDED WEAPONS ===
+
+    GUIDED: {
+        name: 'GUIDED',
+        type: 'GUIDED',
+        damage: 6,
+        energyCost: 6,
+        speed: 7,          // DOS original (7 * 0.4 = 2.8 px/frame)
+        price: 400,
+        // color: Uses tank color (no override)
+        size: 2,
+        density: 0.4,
+        isSensor: false,
+
+        // === GUIDED CONFIG ===
+        isGuided: true,
+        guidedConfig: {
+            turnRate: 0.01,        // 회전 속도 (rad/frame) ≈ 0.57도
+            targetType: 'SMART',   // 스마트 타겟팅 (거리 + 각도 가중치)
+            detectionRange: 100,   // 타겟 탐지 거리 (px)
+            updateInterval: 10     // 타겟 업데이트 주기 (frames)
+        },
+
+        // === TRAIL CONFIG ===
+        hasTrail: true,
+        trailConfig: {
+            maxLength: 36,     // 트레일 점 개수 (72 → 36, 절반으로 감소)
+            fadeRate: 0.03,    // 페이드 속도 (0.015 → 0.03, 2배 빠르게)
+            width: 1,          // 트레일 선 두께 (line thickness)
+            length: 3,         // 트레일 선 길이 (line length)
+            spacing: 3,        // 트레일 간격 (0 → 3px, 성능 최적화 - 2025-11-08)
+            initialAlpha: 0.6, // 시작 투명도
+            color: '#ffffff'   // 트레일 색상 (흰색)
+        },
+
+        // === FIRING PATTERN ===
+        firePattern: 'CENTER',  // Single projectile from center point
+
+        // === RENDERING ===
+        renderType: 'SHORT_BEAM',
+        renderConfig: {
+            length: 6,       // Beam length in pixels (shortened)
+            width: 2,
+            coreWidth: 1,
+            hasCore: true
         }
     }
 

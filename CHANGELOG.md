@@ -6,6 +6,23 @@
 
 ## 2025년 11월
 
+### 2025-11-08
+- **feat**: Guided missile system 구현 및 최적화
+  - GUIDED 무기: SMART 타겟팅, 100px 감지 범위
+  - Trail system: 흰색 라인 기반 잔상 효과
+  - Math utility: normalizeAngle() 각도 정규화 함수
+  - Performance: Trail spacing (33% 연산 감소)
+  - Safety: Target body validation, LOCKED mode clarification
+- **feat**: Weapon port system 개선
+  - equipWeapon() validation (WEAPON_DATA 검증)
+  - Tank energy methods (canFire, consumeEnergy)
+  - getFirePoints() optimization (조건부 변수 계산)
+- **fix**: BLASTER secondary lifetime 추가 (2.0초)
+- **refactor**: Code cleanup
+  - Unused timeAlive variable 제거
+  - Angle normalization 중복 코드 제거
+- **docs**: GUIDED_SYSTEM.md 작성 (유도 시스템 설계 문서)
+
 ### 2025-11-07
 - **feat**: Two-stage weapon system 완성 (c53d84e)
   - PRIMARY → TRIGGER → SECONDARY 시스템

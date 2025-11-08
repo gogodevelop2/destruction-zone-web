@@ -63,6 +63,13 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA, Matter, wor
 
     // Fire projectile (Space key)
     if (keys['Space'] && !keys['Space_fired']) {
+        // Check if current port has a weapon
+        if (!playerTank.currentWeapon) {
+            console.log(`Port ${playerTank.currentPort} is empty - cannot fire`);
+            keys['Space_fired'] = true;
+            return;
+        }
+
         const weaponData = WEAPON_DATA[playerTank.currentWeapon];
 
         if (!weaponData.projectileType || weaponData.projectileType === 'SIMPLE') {
@@ -76,30 +83,35 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA, Matter, wor
         keys['Space_fired'] = true;
     }
 
-    // Weapon switching (1, 2, 3, 4, 5, 6 keys)
+    // === WEAPON PORT SELECTION (Keys 1-7) ===
+    // Select weapon port (not weapon directly)
     if (keys['Digit1']) {
-        playerTank.switchWeapon('MISSILE', WEAPON_DATA);
+        playerTank.selectPort(1, WEAPON_DATA);
         keys['Digit1'] = false;
     }
     if (keys['Digit2']) {
-        playerTank.switchWeapon('LASER', WEAPON_DATA);
+        playerTank.selectPort(2, WEAPON_DATA);
         keys['Digit2'] = false;
     }
     if (keys['Digit3']) {
-        playerTank.switchWeapon('DOUBLE_MISSILE', WEAPON_DATA);
+        playerTank.selectPort(3, WEAPON_DATA);
         keys['Digit3'] = false;
     }
     if (keys['Digit4']) {
-        playerTank.switchWeapon('TRIPLE_MISSILE', WEAPON_DATA);
+        playerTank.selectPort(4, WEAPON_DATA);
         keys['Digit4'] = false;
     }
     if (keys['Digit5']) {
-        playerTank.switchWeapon('POWER_LASER', WEAPON_DATA);
+        playerTank.selectPort(5, WEAPON_DATA);
         keys['Digit5'] = false;
     }
     if (keys['Digit6']) {
-        playerTank.switchWeapon('BLASTER', WEAPON_DATA);
+        playerTank.selectPort(6, WEAPON_DATA);
         keys['Digit6'] = false;
+    }
+    if (keys['Digit7']) {
+        playerTank.selectPort(7, WEAPON_DATA);
+        keys['Digit7'] = false;
     }
 
     // Debug toggle - Moved to Renderer.js (D key)
@@ -107,6 +119,12 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA, Matter, wor
 
 /**
  * Calculate firing positions based on fire pattern
+ *
+ * Optimized 2025-11-08: Variables now calculated only when needed
+ * - CENTER: Only calculates centerDistance
+ * - SIDES: Only calculates perpAngle, sideDistance, sideSpacing
+ * - ALL: Calculates all variables
+ *
  * @param {Tank} tank - Tank object
  * @param {string} firePattern - 'CENTER', 'SIDES', or 'ALL'
  * @returns {Array<{x, y}>} Array of spawn positions
@@ -115,19 +133,12 @@ function getFirePoints(tank, firePattern) {
     const size = tank.config.size * 0.8;
     const tankPos = tank.body.position;
     const tankAngle = tank.body.angle;
-    const perpAngle = tankAngle + Math.PI / 2;
-
-    // Center point: triangle front tip (0.75 * size forward)
-    const centerDistance = size * 0.75 + 5;
-    // Side points: 5px back from center
-    const sideDistance = centerDistance - 5;
-    // Side spacing: ±6px from centerline
-    const sideSpacing = 6;
 
     const points = [];
 
     // CENTER pattern or ALL pattern includes center point
     if (firePattern === 'CENTER' || firePattern === 'ALL') {
+        const centerDistance = size * 0.75 + 5;
         points.push({
             x: tankPos.x + Math.cos(tankAngle) * centerDistance,
             y: tankPos.y + Math.sin(tankAngle) * centerDistance
@@ -136,6 +147,10 @@ function getFirePoints(tank, firePattern) {
 
     // SIDES pattern or ALL pattern includes left and right points
     if (firePattern === 'SIDES' || firePattern === 'ALL') {
+        const perpAngle = tankAngle + Math.PI / 2;
+        const sideDistance = size * 0.75;  // 5px back from center
+        const sideSpacing = 6;
+
         // Left point (negative perpendicular offset)
         points.push({
             x: tankPos.x + Math.cos(tankAngle) * sideDistance + Math.cos(perpAngle) * (-sideSpacing),
@@ -174,13 +189,10 @@ function fireTwoStageWeapon(tank, weaponData, Matter, world, projectiles, Projec
     } else if (tank.canFirePrimary) {
         // MODE 1: Fire new PRIMARY
 
-        // Check energy
-        if (tank.weaponEnergy < weaponData.energyCost) {
-            return; // Not enough energy
+        // Check energy and consume (refactored 2025-11-08: now uses Tank.consumeEnergy())
+        if (!tank.consumeEnergy(weaponData)) {
+            return; // Not enough energy (feedback provided by consumeEnergy)
         }
-
-        // Consume energy
-        tank.weaponEnergy -= weaponData.energyCost;
 
         // Fire PRIMARY projectile
         const primary = firePrimaryProjectile(tank, weaponData, Matter, world, projectiles, Projectile, ProjectileRenderer);
@@ -248,13 +260,10 @@ export function fireProjectile(tank, WEAPON_DATA, projectiles, Projectile, Matte
         return;
     }
 
-    // Check if enough energy
-    if (tank.weaponEnergy < weaponData.energyCost) {
-        return; // Not enough energy
+    // Check energy and consume (refactored 2025-11-08: now uses Tank.consumeEnergy())
+    if (!tank.consumeEnergy(weaponData)) {
+        return; // Not enough energy (feedback provided by consumeEnergy)
     }
-
-    // Consume weapon energy
-    tank.weaponEnergy -= weaponData.energyCost;
 
     // Get fire pattern from weapon data
     const firePattern = weaponData.firePattern || 'CENTER';

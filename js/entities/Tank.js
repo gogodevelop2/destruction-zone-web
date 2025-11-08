@@ -80,8 +80,22 @@ export default class Tank {
         this.health = this.maxHealth;
         this.alive = true;
 
-        // Weapon state
-        this.currentWeapon = 'MISSILE';  // Default weapon
+        // === WEAPON PORT SYSTEM ===
+        // DOS Original: 7 weapon ports, each holds 1 weapon (or null)
+        this.weaponPorts = {
+            1: 'MISSILE',  // Port 1: Front Fire (always starts with MISSILE)
+            2: 'BLASTER',  // Port 2: Blasters (BLASTER for testing)
+            3: null,       // Port 3: Surprise Attack (empty)
+            4: 'GUIDED',   // Port 4: Special Front Fire (GUIDED for testing)
+            5: null,       // Port 5: Aggressive Defence (empty)
+            6: null,       // Port 6: Special Defence (empty)
+            7: null        // Port 7: Harmless Defense (empty)
+        };
+
+        this.currentPort = 1;  // Currently selected port (1-7)
+        this.currentWeapon = this.weaponPorts[1];  // 'MISSILE'
+
+        // Weapon energy
         this.maxWeaponEnergy = 100;
         this.weaponEnergy = 100;
         this.weaponRechargeRate = 20; // per second
@@ -174,6 +188,40 @@ export default class Tank {
             this.thrust = 0;
             this.rotation = 0;
         }
+    }
+
+    /**
+     * Check if tank has enough energy to fire a weapon
+     *
+     * Centralized energy check logic (refactored 2025-11-08)
+     * - Previously duplicated in input.js (SIMPLE and TWO_STAGE weapons)
+     * - Now consolidated here for consistency and maintainability
+     *
+     * @param {Object} weaponData - Weapon configuration
+     * @returns {boolean} True if enough energy
+     */
+    canFire(weaponData) {
+        return this.weaponEnergy >= weaponData.energyCost;
+    }
+
+    /**
+     * Consume energy for firing a weapon
+     *
+     * Centralized energy consumption with automatic user feedback
+     * - Checks energy availability via canFire()
+     * - Provides console feedback when insufficient energy
+     * - Replaces manual energy check/consume in input.js
+     *
+     * @param {Object} weaponData - Weapon configuration
+     * @returns {boolean} True if energy consumed, false if insufficient
+     */
+    consumeEnergy(weaponData) {
+        if (!this.canFire(weaponData)) {
+            console.log(`[${this.id}] Not enough energy! (need ${weaponData.energyCost}, have ${this.weaponEnergy.toFixed(1)})`);
+            return false;
+        }
+        this.weaponEnergy -= weaponData.energyCost;
+        return true;
     }
 
     /**
@@ -343,5 +391,102 @@ export default class Tank {
             ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
             ctx.fill();
         }
+    }
+
+    /**
+     * Select a weapon port (1-7)
+     * @param {number} portNumber - Port number (1-7)
+     * @param {Object} WEAPON_DATA - Weapon data registry (for switchWeapon)
+     */
+    selectPort(portNumber, WEAPON_DATA) {
+        if (portNumber < 1 || portNumber > 7) {
+            console.warn(`Invalid port number: ${portNumber}`);
+            return;
+        }
+
+        // Change current port
+        this.currentPort = portNumber;
+
+        // Get weapon from port
+        const weaponType = this.weaponPorts[portNumber];
+
+        if (weaponType) {
+            // Port has a weapon - switch to it
+            this.switchWeapon(weaponType, WEAPON_DATA);
+        } else {
+            // Empty port - no weapon
+            this.currentWeapon = null;
+
+            // Reset two-stage weapon state
+            this.activePrimary = null;
+            this.canFirePrimary = true;
+        }
+    }
+
+    /**
+     * Equip a weapon to a port
+     * @param {number} portNumber - Port number (1-7)
+     * @param {string|null} weaponType - Weapon type (null = remove)
+     * @param {Object} WEAPON_DATA - Weapon data registry (for validation)
+     * @returns {boolean} Success
+     */
+    equipWeapon(portNumber, weaponType, WEAPON_DATA) {
+        if (portNumber < 1 || portNumber > 7) {
+            console.warn(`Invalid port number: ${portNumber}`);
+            return false;
+        }
+
+        // Remove weapon (null)
+        if (!weaponType) {
+            this.weaponPorts[portNumber] = null;
+
+            // If currently selected port, clear weapon
+            if (this.currentPort === portNumber) {
+                this.currentWeapon = null;
+                this.activePrimary = null;
+                this.canFirePrimary = true;
+            }
+
+            console.log(`Port ${portNumber} cleared`);
+            return true;
+        }
+
+        // Validate weapon type exists in WEAPON_DATA (added 2025-11-08)
+        // Prevents runtime errors from equipping non-existent weapons
+        if (!WEAPON_DATA[weaponType]) {
+            console.error(`Cannot equip unknown weapon: ${weaponType}`);
+            return false;
+        }
+
+        // Equip weapon (replaces existing weapon without warning)
+        const oldWeapon = this.weaponPorts[portNumber];
+        this.weaponPorts[portNumber] = weaponType;
+
+        if (oldWeapon) {
+            console.warn(`Port ${portNumber}: ${oldWeapon} replaced by ${weaponType}`);
+        } else {
+            console.log(`Port ${portNumber}: ${weaponType} equipped`);
+        }
+
+        // If currently selected port, switch immediately
+        if (this.currentPort === portNumber) {
+            this.currentWeapon = weaponType;
+            // Note: Full weapon switch happens in selectPort() with WEAPON_DATA
+            // Here we just update currentWeapon for consistency
+        }
+
+        return true;
+    }
+
+    /**
+     * Get port information
+     * @returns {Object} Port status
+     */
+    getPortInfo() {
+        return {
+            currentPort: this.currentPort,
+            currentWeapon: this.currentWeapon,
+            ports: { ...this.weaponPorts }
+        };
     }
 }

@@ -35,6 +35,92 @@
 
 ### 2025년 11월
 
+#### 11월 8일 - Guided Missile System 구현 및 최적화 ✅
+**유도 미사일 시스템 완성 (GUIDED 무기)**
+- 타겟 탐지 및 추적 시스템 구현
+- 3가지 타겟팅 모드: NEAREST, LOCKED, SMART
+- SMART 알고리즘: 거리 + 각도 가중치 기반 최적 타겟 선택
+- 턴레이트 기반 점진적 회전 (0.01 rad/frame ≈ 0.57°)
+- 타겟 업데이트 주기: 10 frames (성능 최적화)
+
+**Trail System (잔상 효과)**
+- 흰색 라인 기반 트레일 렌더링
+- 설정: maxLength 36, fadeRate 0.03, initialAlpha 0.6
+- Spacing 최적화: 3px 간격 기록 → 33% 연산 감소
+- 라인 세그먼트 렌더링: 1px 두께 × 3px 길이 (spacing 간격 보완)
+- 각도 저장: 미사일 방향과 일치하는 트레일 방향
+
+**안전성 개선**
+- Target body validation: body && body.position 이중 검증
+- LOCKED mode 동작 명확화: 타겟 사망 시 재획득
+- Defense in depth: updateProjectile + adjustVelocityTowardTarget
+
+**성능 최적화**
+- Trail spacing bug 수정: 첫 프레임 기록 처리
+- Unused timeAlive 변수 제거 (300 ops/sec 절감)
+- Math utility 추출: normalizeAngle() 함수 (코드 중복 제거)
+
+**Weapon Port System 개선**
+- equipWeapon() validation: 잘못된 무기 타입 방지
+- Energy management consolidation: Tank.canFire(), Tank.consumeEnergy()
+- Input.js 에너지 중복 체크 제거
+- getFirePoints() 최적화: 조건부 변수 계산 (불필요한 연산 제거)
+
+**BLASTER 무기 밸런스 조정**
+- Secondary 미사일 수명 추가: lifetime 2.0초
+- 이동 거리: ~240px (화면 지저분함 방지)
+- DOS 원본 LIFETIME POLICY 준수
+
+**기술적 세부사항:**
+```javascript
+// guidedSystem.js - SMART 타겟팅
+findBestTarget(projectile, range) {
+    const angleDiff = normalizeAngle(targetAngle - currentAngle);
+    const score = dist + Math.abs(angleDiff) * 100;  // 거리 + 각도 가중치
+    return bestTarget;
+}
+
+// Projectile.js - Trail spacing 최적화
+updateTrail() {
+    if (spacing > 0) {
+        if (lastPos) {
+            this.trailDistanceCounter += dist;
+        } else {
+            this.trailDistanceCounter = spacing;  // 첫 프레임 처리 (버그 수정)
+        }
+    }
+    this.trail.positions.unshift({ x, y, angle, alpha });  // 각도 저장
+}
+
+// ProjectileRenderer.js - 라인 기반 트레일
+updateTrail(sprite, trailPositions) {
+    const x1 = pos.x - Math.cos(pos.angle) * halfLength;
+    const y1 = pos.y - Math.sin(pos.angle) * halfLength;
+    trailGraphics.lineStyle(lineWidth, colorHex, pos.alpha);
+    trailGraphics.lineTo(x2, y2);  // 원 대신 라인 세그먼트
+}
+
+// utils/math.js - 각도 정규화 유틸리티
+export function normalizeAngle(angle) {
+    while (angle > Math.PI) angle -= Math.PI * 2;
+    while (angle < -Math.PI) angle += Math.PI * 2;
+    return angle;
+}
+```
+
+**파일 변경:**
+- 신규: `js/utils/math.js` (25 lines) - 각도 정규화 유틸리티
+- 신규: `docs/GUIDED_SYSTEM.md` - 유도 시스템 설계 문서
+- 수정: `js/systems/guidedSystem.js` - 안전성, normalizeAngle 적용
+- 수정: `js/entities/Projectile.js` - Trail 시스템, spacing bug 수정, timeAlive 제거
+- 수정: `js/core/ProjectileRenderer.js` - 라인 기반 트레일 렌더링
+- 수정: `js/config/weapons.js` - GUIDED 설정, BLASTER lifetime
+- 수정: `js/entities/Tank.js` - canFire(), consumeEnergy() 메서드 추가
+- 수정: `js/systems/input.js` - 에너지 로직 통합, getFirePoints() 최적화
+- 수정: `docs/WEAPON_PORT_SYSTEM.md` - 포트 시스템 개선사항 추가
+
+**상세:** 유도 시스템 아키텍처 및 Trail 시스템 구현은 [docs/GUIDED_SYSTEM.md](./docs/GUIDED_SYSTEM.md) 참고
+
 #### 11월 7일 - Two-Stage Weapon System 완성 ✅
 **BLASTER 무기 구현 (PRIMARY/SECONDARY 시스템)**
 - Two-stage lifecycle: PRIMARY (warhead) → TRIGGER (manual/auto) → SECONDARY (split missiles)

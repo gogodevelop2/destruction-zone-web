@@ -3,6 +3,7 @@
 // ============================================
 
 import { COLLISION_CATEGORY, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
+import { SPEED_SCALE_FACTOR } from '../config/weapons.js';
 
 /**
  * Projectile class - Physics + Lifetime + PixiJS rendering coordination
@@ -53,8 +54,23 @@ export default class Projectile {
         this.color = projectileConfig.color || ownerColor;
 
         // Calculate actual speed (DOS units → web pixels)
-        const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
+        // SPEED_SCALE_FACTOR imported from weapons.js (0.4: 5 DOS units = 2 px/frame)
         const actualSpeed = projectileConfig.speed * SPEED_SCALE_FACTOR;
+
+        // === ACCELERATION SYSTEM ===
+        this.hasAcceleration = projectileConfig.hasAcceleration || false;
+        if (this.hasAcceleration) {
+            const accelConfig = projectileConfig.accelerationConfig;
+            const initialSpeedScaled = accelConfig.initialSpeed * SPEED_SCALE_FACTOR;
+            this.acceleration = {
+                initialSpeed: initialSpeedScaled,
+                finalSpeed: accelConfig.finalSpeed * SPEED_SCALE_FACTOR,
+                duration: accelConfig.duration || 1.0,  // seconds
+                easingType: accelConfig.easingType || 'EASE_OUT_QUAD',
+                currentSpeed: initialSpeedScaled,  // Reuse calculated value
+                elapsedTime: 0
+            };
+        }
 
         // Create physics body (sensor or physical based on weapon type)
         // isSensor: true = collision detection only (no physical forces)
@@ -74,9 +90,11 @@ export default class Projectile {
         });
 
         // Set initial velocity
+        // If acceleration is enabled, use initial speed instead of actualSpeed
+        const initialSpeed = this.hasAcceleration ? this.acceleration.initialSpeed : actualSpeed;
         const velocity = {
-            x: Math.cos(angle) * actualSpeed,
-            y: Math.sin(angle) * actualSpeed
+            x: Math.cos(angle) * initialSpeed,
+            y: Math.sin(angle) * initialSpeed
         };
         Matter.Body.setVelocity(this.body, velocity);
 
@@ -144,6 +162,11 @@ export default class Projectile {
     update(deltaTime) {
         this.age += deltaTime;
 
+        // === ACCELERATION UPDATE ===
+        if (this.hasAcceleration) {
+            this.updateAcceleration(deltaTime);
+        }
+
         // === GUIDED BEHAVIOR ===
         // Guided logic is handled by guidedSystem.js (integrated in Game.js)
         // No projectile-level logic needed here
@@ -173,6 +196,53 @@ export default class Projectile {
         if (this.isOutOfBounds() || (this.lifetime && this.age >= this.lifetime)) {
             this.destroy();
         }
+    }
+
+    /**
+     * Update acceleration (Ease-Out Quadratic)
+     * Speed increases from initialSpeed to finalSpeed over duration
+     * @param {number} deltaTime - Time since last frame in seconds
+     */
+    updateAcceleration(deltaTime) {
+        const accel = this.acceleration;
+
+        // Early exit: Already reached final speed
+        if (accel.elapsedTime >= accel.duration) {
+            return;
+        }
+
+        accel.elapsedTime += deltaTime;
+
+        // Calculate progress (0.0 to 1.0)
+        const progress = Math.min(accel.elapsedTime / accel.duration, 1.0);
+
+        // Apply easing function
+        let eased;
+        if (accel.easingType === 'EASE_OUT_QUAD') {
+            // Ease-Out Quadratic: Fast initial acceleration, gradual slowdown
+            eased = 1 - (1 - progress) * (1 - progress);
+        } else if (accel.easingType === 'EASE_OUT_CUBIC') {
+            // Ease-Out Cubic: Even faster initial burst
+            eased = 1 - Math.pow(1 - progress, 3);
+        } else {
+            // Linear fallback
+            eased = progress;
+        }
+
+        // Calculate current speed
+        accel.currentSpeed = accel.initialSpeed + (accel.finalSpeed - accel.initialSpeed) * eased;
+
+        // Update velocity (maintain direction, change magnitude)
+        // IMPORTANT: Use current velocity vector for angle, NOT initial angle
+        // Reason: Guided missiles change direction → initial angle becomes outdated
+        // This ensures acceleration works correctly with GUIDED system
+        const vel = this.body.velocity;
+        const currentAngle = Math.atan2(vel.y, vel.x);
+        const newVelocity = {
+            x: Math.cos(currentAngle) * accel.currentSpeed,
+            y: Math.sin(currentAngle) * accel.currentSpeed
+        };
+        this.Matter.Body.setVelocity(this.body, newVelocity);
     }
 
     /**

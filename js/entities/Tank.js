@@ -81,19 +81,31 @@ export default class Tank {
         this.alive = true;
 
         // === WEAPON PORT SYSTEM ===
-        // DOS Original: 7 weapon ports, each holds 1 weapon (or null)
+        // New: Each port can hold multiple weapons (array)
+        // Player can cycle through weapons in same port with Tab key
         this.weaponPorts = {
-            1: 'MISSILE',  // Port 1: Front Fire (always starts with MISSILE)
-            2: 'BLASTER',  // Port 2: Blasters (BLASTER for testing)
-            3: null,       // Port 3: Surprise Attack (empty)
-            4: 'GUIDED',   // Port 4: Special Front Fire (GUIDED for testing)
-            5: null,       // Port 5: Aggressive Defence (empty)
-            6: null,       // Port 6: Special Defence (empty)
-            7: null        // Port 7: Harmless Defense (empty)
+            1: ['MISSILE', 'DOUBLE_MISSILE', 'TRIPLE_MISSILE', 'LASER', 'POWER_LASER', 'TRI_STRIKER'],  // Port 1: Front Fire (6 weapons)
+            2: ['BLASTER'],    // Port 2: Blasters (BLASTER for testing)
+            3: [],             // Port 3: Surprise Attack (empty)
+            4: ['GUIDED'],     // Port 4: Special Front Fire (GUIDED for testing)
+            5: [],             // Port 5: Aggressive Defence (empty)
+            6: [],             // Port 6: Special Defence (empty)
+            7: []              // Port 7: Harmless Defense (empty)
+        };
+
+        // Track current weapon index for each port (remembers last selected weapon)
+        this.currentWeaponIndex = {
+            1: 0,  // Port 1 starts with index 0 (MISSILE)
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+            6: 0,
+            7: 0
         };
 
         this.currentPort = 1;  // Currently selected port (1-7)
-        this.currentWeapon = this.weaponPorts[1];  // 'MISSILE'
+        this.currentWeapon = this.weaponPorts[1][0];  // 'MISSILE' (default)
 
         // Weapon energy
         this.maxWeaponEnergy = 100;
@@ -407,11 +419,15 @@ export default class Tank {
         // Change current port
         this.currentPort = portNumber;
 
-        // Get weapon from port
-        const weaponType = this.weaponPorts[portNumber];
+        // Get weapon array from port
+        const weaponArray = this.weaponPorts[portNumber];
 
-        if (weaponType) {
-            // Port has a weapon - switch to it
+        if (weaponArray && weaponArray.length > 0) {
+            // Port has weapons - get the last selected weapon for this port
+            const weaponIndex = this.currentWeaponIndex[portNumber];
+            const weaponType = weaponArray[weaponIndex];
+
+            // Switch to it
             this.switchWeapon(weaponType, WEAPON_DATA);
         } else {
             // Empty port - no weapon
@@ -421,6 +437,38 @@ export default class Tank {
             this.activePrimary = null;
             this.canFirePrimary = true;
         }
+    }
+
+    /**
+     * Cycle to next weapon in current port (Tab key)
+     * @param {Object} WEAPON_DATA - Weapon data registry (for switchWeapon)
+     */
+    cycleWeapon(WEAPON_DATA) {
+        const weaponArray = this.weaponPorts[this.currentPort];
+
+        // Check if port has weapons
+        if (!weaponArray || weaponArray.length === 0) {
+            console.log(`Port ${this.currentPort} is empty - cannot cycle weapons`);
+            return;
+        }
+
+        // If only one weapon, no need to cycle
+        if (weaponArray.length === 1) {
+            console.log(`Port ${this.currentPort} has only one weapon`);
+            return;
+        }
+
+        // Cycle to next weapon (with wrap-around)
+        const newIndex = (this.currentWeaponIndex[this.currentPort] + 1) % weaponArray.length;
+        this.currentWeaponIndex[this.currentPort] = newIndex;
+
+        // Get new weapon
+        const newWeaponType = weaponArray[newIndex];
+
+        // Switch to it
+        this.switchWeapon(newWeaponType, WEAPON_DATA);
+
+        console.log(`Port ${this.currentPort}: Cycled to ${newWeaponType} (${newIndex + 1}/${weaponArray.length})`);
     }
 
     /**

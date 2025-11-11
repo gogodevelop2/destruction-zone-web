@@ -6,6 +6,21 @@
 
 ## 2025년 11월
 
+### 2025-11-11
+- **feat**: Acceleration system 구현
+  - Ease-Out Quadratic 가속 시스템
+  - 조기 종료 최적화 (최종 속도 도달 후 스킵)
+  - TRI-STRIKER 가속 적용 (5→45 DOS, 1.0초)
+  - BLASTER PRIMARY 가속 적용 (5→12 DOS, 0.7초)
+- **feat**: TRI-STRIKER 무기 완성
+  - MEDIUM_BEAM 렌더링 (9px, 2-layer blur system)
+  - 3발 동시 발사 (firePattern: 'ALL')
+  - BlurFilter 적용 (별도 Graphics 레이어)
+- **feat**: Weapon port cycling system
+  - 각 포트에 무기 배열 저장
+  - Tab 키로 포트 내 무기 순환
+  - 포트별 선택 상태 기억 (currentWeaponIndex)
+
 ### 2025-11-08
 - **feat**: Guided missile system 구현 및 최적화
   - GUIDED 무기: SMART 타겟팅, 100px 감지 범위

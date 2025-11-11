@@ -279,12 +279,21 @@ export const WEAPON_DATA = {
         // === PRIMARY PROJECTILE (Warhead) ===
         primaryProjectile: {
             damage: 0,         // Warhead itself does no damage (only SECONDARY missiles do damage)
-            speed: 12,         // DOS original (12 * 0.4 = 4.8 px/frame, 2.4x faster than MISSILE)
+            speed: 5,          // Initial speed (used for acceleration system)
             size: 1.5,         // 1.5px radius = 3px diameter
             // color: Uses tank color (no override)
             density: 0.4,
             isSensor: false,   // Physical projectile
             firePattern: 'CENTER',  // Single warhead from center
+
+            // === ACCELERATION SYSTEM ===
+            hasAcceleration: true,
+            accelerationConfig: {
+                initialSpeed: 5,      // DOS units (5 * 0.4 = 2.0 px/frame, MISSILE speed)
+                finalSpeed: 12,       // DOS units (12 * 0.4 = 4.8 px/frame, original BLASTER speed)
+                duration: 0.7,        // 0.7 seconds (42 frames at 60 fps)
+                easingType: 'EASE_OUT_QUAD'  // Ease-Out Quadratic (fast initial burst, gradual slowdown)
+            },
 
             // Rendering: Circular warhead
             renderType: 'CIRCLE',
@@ -362,6 +371,42 @@ export const WEAPON_DATA = {
             width: 2,
             coreWidth: 1,
             hasCore: true
+        }
+    },
+
+    TRI_STRIKER: {
+        name: 'TRI-STRIKER',
+        type: 'TRI_STRIKER',
+        damage: 6,         // Per projectile (3 × 6 = 18 total, DOS original)
+        energyCost: 6,
+        speed: 5,          // Initial speed (used for acceleration system)
+        price: 3350,       // DOS original
+        // color: Uses tank color (no override)
+        size: 1.5,
+        density: 0.4,      // Missile-grade density (will accelerate to laser speed)
+        isSensor: false,   // Physical projectile (may consider isSensor after high-speed testing)
+
+        // === FIRING PATTERN ===
+        firePattern: 'ALL',  // 3 projectiles: center + left + right
+
+        // === ACCELERATION SYSTEM ===
+        hasAcceleration: true,
+        accelerationConfig: {
+            initialSpeed: 5,      // DOS units (5 * 0.4 = 2.0 px/frame, MISSILE speed)
+            finalSpeed: 45,       // DOS units (45 * 0.4 = 18.0 px/frame, LASER speed)
+            duration: 1.0,        // 1.0 seconds (60 frames at 60 fps)
+            easingType: 'EASE_OUT_QUAD'  // Ease-Out Quadratic (fast initial burst, gradual slowdown)
+        },
+
+        // === RENDERING - MEDIUM_BEAM ===
+        renderType: 'MEDIUM_BEAM',
+        renderConfig: {
+            length: 9,            // Medium size (between SHORT_BEAM and LONG_BEAM)
+            width: 2,             // Same thickness as MISSILE
+            coreWidth: 1,         // Same core thickness as MISSILE
+            hasCore: true,        // White core enabled
+            useBlurFilter: true,  // BlurFilter enabled (performance consideration!)
+            blurStrength: 3       // Blur strength (1~10)
         }
     }
 

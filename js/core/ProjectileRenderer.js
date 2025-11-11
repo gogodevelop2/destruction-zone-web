@@ -113,6 +113,54 @@ const ProjectileRenderer = {
         },
 
         /**
+         * MEDIUM_BEAM: Medium beam projectile with separate blur glow layer (current: TRI-STRIKER)
+         * Config: { length, width, coreWidth, hasCore, useBlurFilter, blurStrength }
+         *
+         * Rendering (2-layer approach):
+         * 1. Background blur layer (separate graphics with BlurFilter)
+         * 2. Foreground sharp layer (main beam + core, no filter)
+         */
+        'MEDIUM_BEAM': (graphics, color, config) => {
+            const colorHex = parseInt(color.replace('#', ''), 16);
+            const length = config.length || 13;
+            const width = config.width || 2;
+            const coreWidth = config.coreWidth || 1;
+
+            // === LAYER 1: Blur glow (background) ===
+            if (config.useBlurFilter) {
+                const blurStrength = config.blurStrength ?? 2;
+
+                // Create separate graphics for blur layer
+                const blurGraphics = new PIXI.Graphics();
+                blurGraphics.lineStyle(width, colorHex, 1);
+                blurGraphics.moveTo(-length/2, 0);
+                blurGraphics.lineTo(length/2, 0);
+
+                // Apply blur filter only to this layer
+                const blurFilter = new PIXI.filters.BlurFilter();
+                blurFilter.blur = blurStrength;
+                blurFilter.quality = 2;
+                blurGraphics.filters = [blurFilter];
+
+                // Add blur layer as child (renders first, behind main layer)
+                graphics.addChild(blurGraphics);
+            }
+
+            // === LAYER 2: Sharp beam (foreground) ===
+            // Main beam layer (no filter, sharp)
+            graphics.lineStyle(width, colorHex, 1);
+            graphics.moveTo(-length/2, 0);
+            graphics.lineTo(length/2, 0);
+
+            // Core layer (optional white core, no filter, sharp)
+            if (config.hasCore) {
+                graphics.lineStyle(coreWidth, 0xffffff, 1);
+                graphics.moveTo(-length/2, 0);
+                graphics.lineTo(length/2, 0);
+            }
+        },
+
+        /**
          * CIRCLE: Circular projectile (current: BLASTER warheads, BOMB)
          * Config: { radius, fillAlpha, hasOutline, hasGlow }
          */

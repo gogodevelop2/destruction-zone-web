@@ -12,16 +12,16 @@ const keys = {};
  */
 export function setupKeyboardControls() {
     window.addEventListener('keydown', (e) => {
-        // Prevent arrow key scrolling and space bar scrolling
-        if (e.code.startsWith('Arrow') || e.code === 'Space') {
+        // Prevent default browser behavior for game keys
+        if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab') {
             e.preventDefault();
         }
         keys[e.code] = true;
     });
 
     window.addEventListener('keyup', (e) => {
-        // Prevent arrow key scrolling and space bar scrolling
-        if (e.code.startsWith('Arrow') || e.code === 'Space') {
+        // Prevent default browser behavior for game keys
+        if (e.code.startsWith('Arrow') || e.code === 'Space' || e.code === 'Tab') {
             e.preventDefault();
         }
         keys[e.code] = false;
@@ -112,6 +112,13 @@ export function handleInput(playerTank, fireProjectile, WEAPON_DATA, Matter, wor
     if (keys['Digit7']) {
         playerTank.selectPort(7, WEAPON_DATA);
         keys['Digit7'] = false;
+    }
+
+    // === WEAPON CYCLING (Tab key) ===
+    // Cycle through weapons in current port
+    if (keys['Tab']) {
+        playerTank.cycleWeapon(WEAPON_DATA);
+        keys['Tab'] = false;
     }
 
     // Debug toggle - Moved to Renderer.js (D key)

@@ -35,6 +35,110 @@
 
 ### 2025년 11월
 
+#### 11월 11일 - Acceleration System 구현 및 TRI-STRIKER 완성 ✅
+**가속도 시스템 구축**
+- Ease-Out Quadratic 기반 가속 시스템 구현
+- 초기 속도 → 최종 속도 점진적 증가 (물리적으로 현실적인 로켓 가속)
+- 조기 종료 최적화: 최종 속도 도달 후 연산 스킵
+- 성능: 가벼운 연산량 (~15회 기본 연산 + 삼각함수 3회)
+- GUIDED/TRAIL 시스템보다 가벼움
+
+**TRI-STRIKER 무기 완성**
+- 3발 동시 발사 (firePattern: 'ALL')
+- 각 6 데미지 (총 18 데미지, DOS 원본)
+- 가속: 5 → 45 DOS units (2.0 → 18.0 px/frame, 1.0초)
+- Ease-Out Quadratic: 빠른 초기 가속 → 점진적 최고속도 도달
+- MEDIUM_BEAM 렌더링 (9px 길이, blur glow 효과)
+
+**BLASTER 가속도 적용**
+- PRIMARY warhead에 가속 시스템 추가
+- 가속: 5 → 12 DOS units (2.0 → 4.8 px/frame, 0.7초)
+- 동일한 Ease-Out Quadratic 곡선 사용
+- 더 민첩한 warhead 동작
+
+**MEDIUM_BEAM 렌더링 시스템**
+- 2-layer 구조: Blur background + Sharp foreground
+- BlurFilter: 별도 Graphics 객체에만 적용 (성능 고려)
+- 설정: length 9px, width 2px, coreWidth 1px, blurStrength 3
+- 흰색 코어 추가 (hasCore: true)
+
+**Weapon Port Cycling 시스템**
+- 각 포트에 여러 무기 배열 저장
+- Tab 키로 같은 포트 내 무기 순환
+- 포트별 선택 상태 기억 (currentWeaponIndex)
+- Port 1 기본: [MISSILE, TRI_STRIKER]
+
+**기술적 세부사항:**
+```javascript
+// Projectile.js - 가속도 시스템
+updateAcceleration(deltaTime) {
+    // 조기 종료
+    if (accel.elapsedTime >= accel.duration) return;
+
+    accel.elapsedTime += deltaTime;
+    const progress = Math.min(accel.elapsedTime / accel.duration, 1.0);
+
+    // Ease-Out Quadratic
+    const eased = 1 - (1 - progress) * (1 - progress);
+
+    // 속도 계산 및 적용
+    accel.currentSpeed = accel.initialSpeed + (accel.finalSpeed - accel.initialSpeed) * eased;
+    const newVelocity = {
+        x: Math.cos(currentAngle) * accel.currentSpeed,
+        y: Math.sin(currentAngle) * accel.currentSpeed
+    };
+    Matter.Body.setVelocity(this.body, newVelocity);
+}
+
+// ProjectileRenderer.js - MEDIUM_BEAM (2-layer blur)
+'MEDIUM_BEAM': (graphics, color, config) => {
+    // Layer 1: Blur glow (background, separate Graphics)
+    if (config.useBlurFilter) {
+        const blurGraphics = new PIXI.Graphics();
+        blurGraphics.lineStyle(width, colorHex, 1);
+        blurGraphics.moveTo(-length/2, 0);
+        blurGraphics.lineTo(length/2, 0);
+
+        const blurFilter = new PIXI.filters.BlurFilter();
+        blurFilter.blur = blurStrength ?? 2;
+        blurFilter.quality = 2;
+        blurGraphics.filters = [blurFilter];
+        graphics.addChild(blurGraphics);  // Renders behind
+    }
+
+    // Layer 2: Sharp beam (foreground, no filter)
+    graphics.lineStyle(width, colorHex, 1);
+    graphics.moveTo(-length/2, 0);
+    graphics.lineTo(length/2, 0);
+
+    if (config.hasCore) {
+        graphics.lineStyle(coreWidth, 0xffffff, 1);
+        graphics.moveTo(-length/2, 0);
+        graphics.lineTo(length/2, 0);
+    }
+}
+
+// Tank.js - Weapon cycling system
+cycleWeapon(WEAPON_DATA) {
+    const weaponArray = this.weaponPorts[this.currentPort];
+    if (!weaponArray || weaponArray.length <= 1) return;
+
+    // Increment with wrap-around
+    this.currentWeaponIndex[this.currentPort] =
+        (this.currentWeaponIndex[this.currentPort] + 1) % weaponArray.length;
+
+    const newWeaponType = weaponArray[this.currentWeaponIndex[this.currentPort]];
+    this.switchWeapon(newWeaponType, WEAPON_DATA);
+}
+```
+
+**파일 변경:**
+- 수정: `js/entities/Projectile.js` - 가속도 시스템 추가 (hasAcceleration, updateAcceleration)
+- 수정: `js/config/weapons.js` - TRI_STRIKER 완성 (가속, MEDIUM_BEAM), BLASTER 가속 추가
+- 수정: `js/core/ProjectileRenderer.js` - MEDIUM_BEAM 렌더 타입 추가 (2-layer blur)
+- 수정: `js/entities/Tank.js` - weaponPorts 배열화, cycleWeapon() 메서드 추가
+- 수정: `js/systems/input.js` - Tab 키 무기 순환, preventDefault 추가
+
 #### 11월 8일 - Guided Missile System 구현 및 최적화 ✅
 **유도 미사일 시스템 완성 (GUIDED 무기)**
 - 타겟 탐지 및 추적 시스템 구현

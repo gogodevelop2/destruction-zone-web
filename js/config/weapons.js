@@ -88,6 +88,34 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
  */
 
 /**
+ * ============================================
+ * TRAIL SYSTEM CONFIG (IMPORTANT - READ BEFORE MODIFYING)
+ * ============================================
+ *
+ * fadeRate: Per-frame alpha 감소량 (트레일 페이드 속도)
+ * - 값이 클수록: 빠른 페이드 → 짧은 트레일
+ * - 값이 작을수록: 느린 페이드 → 긴 트레일
+ *
+ * CURRENT SETTINGS:
+ * - GUIDED: fadeRate 0.03 (긴 트레일, 20프레임 ≈ 0.33초)
+ * - GUIDE_BLASTER PRIMARY: fadeRate 0.03 (긴 트레일)
+ * - BLAST_GUIDER SECONDARY: fadeRate 0.12 (짧은 트레일, 5프레임 ≈ 0.08초)
+ *
+ * WHY DIFFERENT?
+ * - GUIDED: lifetime 없음 (충돌 전까지 비행) → 긴 트레일 선호
+ * - BLAST_GUIDER 자탄: lifetime 2.0s (강제 소멸) → 짧은 트레일 (빠른 정리)
+ *
+ * CALCULATION:
+ * - 보이는 위치 개수 = initialAlpha / fadeRate
+ * - fadeRate 0.03: 0.6 / 0.03 = 20개 위치 → 60px 트레일
+ * - fadeRate 0.12: 0.6 / 0.12 = 5개 위치 → 15px 트레일
+ *
+ * TrailManager DEFAULT (fallback):
+ * - fadeRate: 0.12 (weapons.js에서 설정 안 하면 사용)
+ * ============================================
+ */
+
+/**
  * Weapon Data (from original game, speeds in DOS units)
  * Each weapon has damage, energy cost, speed, price, visual properties
  *
@@ -144,6 +172,7 @@ export const SPEED_SCALE_FACTOR = 0.4;  // 5 * 0.4 = 2
 export const WEAPON_DATA = {
     MISSILE: {
         name: 'MISSILE',
+        displayName: 'MISIL',  // 화면 표시용 요약 이름
         type: 'MISSILE',
         damage: 4,
         energyCost: 4,
@@ -168,6 +197,7 @@ export const WEAPON_DATA = {
     },
     LASER: {
         name: 'BEAM LASER',
+        displayName: 'LASER',  // 화면 표시용 요약 이름
         type: 'LASER',
         damage: 6,
         energyCost: 6,
@@ -192,6 +222,7 @@ export const WEAPON_DATA = {
     },
     DOUBLE_MISSILE: {
         name: 'DOUBLE MISSILE',
+        displayName: 'DOUBL',  // 화면 표시용 요약 이름
         type: 'DOUBLE_MISSILE',
         damage: 3,         // Per projectile (2 projectiles × 3 damage = 6 total, DOS original)
         energyCost: 4,
@@ -216,6 +247,7 @@ export const WEAPON_DATA = {
     },
     TRIPLE_MISSILE: {
         name: 'TRIPLE MISSILE',
+        displayName: 'TRIPL',  // 화면 표시용 요약 이름
         type: 'TRIPLE_MISSILE',
         damage: 3,         // Per projectile (3 projectiles × 3 damage = 9 total, DOS original)
         energyCost: 6,
@@ -240,6 +272,7 @@ export const WEAPON_DATA = {
     },
     POWER_LASER: {
         name: 'POWER LASER',
+        displayName: 'POWER',  // 화면 표시용 요약 이름
         type: 'POWER_LASER',
         damage: 6,         // Per projectile (2 projectiles × 6 damage = 12 total, DOS original)
         energyCost: 6,     // Same as single LASER (DOS: "using energy of only one")
@@ -268,6 +301,7 @@ export const WEAPON_DATA = {
 
     BLASTER: {
         name: 'BLASTER',
+        displayName: 'BLAST',  // 화면 표시용 요약 이름
         type: 'BLASTER',
         energyCost: 22,        // DOS original
         price: 650,            // DOS original
@@ -330,6 +364,7 @@ export const WEAPON_DATA = {
 
     GUIDED: {
         name: 'GUIDED',
+        displayName: 'GUIDE',  // 화면 표시용 요약 이름
         type: 'GUIDED',
         damage: 6,
         energyCost: 6,
@@ -352,12 +387,12 @@ export const WEAPON_DATA = {
         // === TRAIL CONFIG ===
         hasTrail: true,
         trailConfig: {
-            maxLength: 36,     // 트레일 점 개수 (72 → 36, 절반으로 감소)
-            fadeRate: 0.03,    // 페이드 속도 (0.015 → 0.03, 2배 빠르게)
+            maxLength: 36,     // 트레일 점 개수 (최대 36개 위치 저장)
+            fadeRate: 0.03,    // 페이드 속도 (per-frame, 긴 트레일 - 20프레임 지속)
             width: 1,          // 트레일 선 두께 (line thickness)
             length: 3,         // 트레일 선 길이 (line length)
-            spacing: 3,        // 트레일 간격 (0 → 3px, 성능 최적화 - 2025-11-08)
-            initialAlpha: 0.6, // 시작 투명도
+            spacing: 3,        // 트레일 간격 (3px 이동마다 1개 위치 추가)
+            initialAlpha: 0.6, // 시작 투명도 (새 위치의 초기 alpha 값)
             color: '#ffffff'   // 트레일 색상 (흰색)
         },
 
@@ -376,6 +411,7 @@ export const WEAPON_DATA = {
 
     TRI_STRIKER: {
         name: 'TRI-STRIKER',
+        displayName: 'STRIK',  // 화면 표시용 요약 이름
         type: 'TRI_STRIKER',
         damage: 6,         // Per projectile (3 × 6 = 18 total, DOS original)
         energyCost: 6,
@@ -407,6 +443,158 @@ export const WEAPON_DATA = {
             hasCore: true,        // White core enabled
             useBlurFilter: true,  // BlurFilter enabled (performance consideration!)
             blurStrength: 3       // Blur strength (1~10)
+        }
+    },
+
+    // === PORT 2: BLASTERS ===
+
+    GUIDE_BLASTER: {
+        name: 'GUIDE BLASTER',
+        displayName: 'G.BST',  // 화면 표시용 요약 이름
+        type: 'GUIDE_BLASTER',
+        energyCost: 28,        // DOS original (BLASTER보다 6 높음, 28% 증가)
+        price: 1200,           // DOS original
+
+        // === TWO-STAGE CONFIG ===
+        projectileType: 'TWO_STAGE',
+        triggerType: 'BOTH',   // Can trigger via fire key (MANUAL) or collision (AUTO)
+
+        // === PRIMARY PROJECTILE (Guided Warhead) ===
+        primaryProjectile: {
+            damage: 0,         // Warhead itself does no damage (only SECONDARY missiles do damage)
+            speed: 7,          // DOS original (7 * 0.4 = 2.8 px/frame, slower than BLASTER's 12)
+            size: 1.5,         // 1.5px radius = 3px diameter (same as BLASTER)
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,   // Physical projectile
+            firePattern: 'CENTER',  // Single warhead from center
+
+            // === GUIDED SYSTEM (핵심 차별점!) ===
+            isGuided: true,
+            guidedConfig: {
+                turnRate: 0.01,        // 회전 속도 (rad/frame) ≈ 0.57도 (GUIDED와 동일)
+                targetType: 'SMART',   // 스마트 타겟팅 (거리 + 각도 가중치)
+                detectionRange: 100,   // 타겟 탐지 거리 (px)
+                updateInterval: 10     // 타겟 업데이트 주기 (frames)
+            },
+
+            // === TRAIL SYSTEM (유도 미사일 시각화) ===
+            hasTrail: true,
+            trailConfig: {
+                maxLength: 36,     // 트레일 점 개수 (최대 36개 위치 저장)
+                fadeRate: 0.03,    // 페이드 속도 (per-frame, 긴 트레일 - 20프레임 지속)
+                width: 1,          // 트레일 선 두께 (line thickness)
+                length: 3,         // 트레일 선 길이 (line length)
+                spacing: 3,        // 트레일 간격 (3px 이동마다 1개 위치 추가)
+                initialAlpha: 0.6, // 시작 투명도 (새 위치의 초기 alpha 값)
+                color: '#ffffff'   // 트레일 색상 (흰색)
+            },
+
+            // Rendering: Circular warhead
+            renderType: 'CIRCLE',
+            renderConfig: {
+                radius: 1.5,       // 1.5px radius = 3px diameter
+                fillAlpha: 1,
+                hasOutline: false  // No outline (BLASTER와 동일)
+            }
+        },
+
+        // === SECONDARY PROJECTILES (일반 자탄, 유도 없음) ===
+        secondaryProjectiles: {
+            damage: 7.5,       // 90 total / 12 missiles = 7.5 damage each (BLASTER와 동일)
+            speed: 5,          // DOS original (5 * 0.4 = 2.0 px/frame, same as basic MISSILE)
+            size: 2,           // Same as MISSILE
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,
+            lifetime: 2.0,     // 2 seconds (2.0 px/frame × 60 fps × 2s = 240px range)
+
+            // Split pattern
+            pattern: 'CIRCLE',      // 360° spread (all directions)
+            count: 12,              // 12 missiles in circle
+
+            // Rendering: Small circular projectile
+            renderType: 'SMALL_CIRCLE',
+            renderConfig: {
+                radius: 1           // 1px radius = 2px diameter
+            }
+        }
+    },
+
+    BLAST_GUIDER: {
+        name: 'BLAST GUIDER',
+        displayName: 'B.GUI',  // 화면 표시용 요약 이름
+        type: 'BLAST_GUIDER',
+        energyCost: 34,        // DOS original (GUIDE_BLASTER보다 6 높음, 21% 증가)
+        price: 2500,           // DOS original (GUIDE_BLASTER의 2배 이상)
+
+        // === TWO-STAGE CONFIG ===
+        projectileType: 'TWO_STAGE',
+        triggerType: 'BOTH',   // Can trigger via fire key (MANUAL) or collision (AUTO)
+
+        // === PRIMARY PROJECTILE (일반 모탄, 유도 없음) ===
+        primaryProjectile: {
+            damage: 0,         // Warhead itself does no damage (only SECONDARY missiles do damage)
+            speed: 7,          // DOS original (7 * 0.4 = 2.8 px/frame, same as GUIDE_BLASTER)
+            size: 1.5,         // 1.5px radius = 3px diameter (same as BLASTER)
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,   // Physical projectile
+            firePattern: 'CENTER',  // Single warhead from center
+
+            // === NO GUIDED (일반 모탄!) ===
+            // isGuided: false (기본값, 생략)
+            // hasTrail: false (기본값, 생략)
+
+            // Rendering: Circular warhead
+            renderType: 'CIRCLE',
+            renderConfig: {
+                radius: 1.5,       // 1.5px radius = 3px diameter
+                fillAlpha: 1,
+                hasOutline: false  // No outline
+            }
+        },
+
+        // === SECONDARY PROJECTILES (유도 자탄!) ===
+        secondaryProjectiles: {
+            damage: 5.83,      // 70 total / 12 missiles = 5.83 damage each (DOS original)
+            speed: 5,          // DOS original (5 * 0.4 = 2.0 px/frame, same as basic MISSILE)
+            size: 2,           // Same as MISSILE
+            // color: Uses tank color (no override)
+            density: 0.4,
+            isSensor: false,
+            lifetime: 2.0,     // 2 seconds (2.0 px/frame × 60 fps × 2s = 240px range)
+
+            // === GUIDED SYSTEM (핵심 차별점!) ===
+            isGuided: true,
+            guidedConfig: {
+                turnRate: 0.01,        // 회전 속도 (rad/frame) ≈ 0.57도
+                targetType: 'SMART',   // 스마트 타겟팅 (거리 + 각도 가중치)
+                detectionRange: 100,   // 타겟 탐지 거리 (px)
+                updateInterval: 10     // 타겟 업데이트 주기 (frames)
+            },
+
+            // === TRAIL SYSTEM (유도 미사일 시각화) ===
+            hasTrail: true,
+            trailConfig: {
+                maxLength: 36,     // 트레일 점 개수 (최대 36개 위치 저장)
+                fadeRate: 0.12,    // 페이드 속도 (per-frame, 짧은 트레일 - 5프레임 지속, lifetime 2.0s용)
+                width: 1,          // 트레일 선 두께 (line thickness)
+                length: 3,         // 트레일 선 길이 (line length)
+                spacing: 3,        // 트레일 간격 (3px 이동마다 1개 위치 추가)
+                initialAlpha: 0.6, // 시작 투명도 (새 위치의 초기 alpha 값)
+                color: '#ffffff'   // 트레일 색상 (흰색)
+            },
+
+            // Split pattern
+            pattern: 'CIRCLE',      // 360° spread (all directions)
+            count: 12,              // 12 missiles in circle
+
+            // Rendering: Small circular projectile
+            renderType: 'SMALL_CIRCLE',
+            renderConfig: {
+                radius: 1           // 1px radius = 2px diameter
+            }
         }
     }
 

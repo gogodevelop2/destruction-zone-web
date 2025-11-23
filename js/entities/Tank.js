@@ -85,7 +85,7 @@ export default class Tank {
         // Player can cycle through weapons in same port with Tab key
         this.weaponPorts = {
             1: ['MISSILE', 'DOUBLE_MISSILE', 'TRIPLE_MISSILE', 'LASER', 'POWER_LASER', 'TRI_STRIKER'],  // Port 1: Front Fire (6 weapons)
-            2: ['BLASTER'],    // Port 2: Blasters (BLASTER for testing)
+            2: ['BLASTER', 'GUIDE_BLASTER', 'BLAST_GUIDER'],    // Port 2: Blasters (BLASTER, GUIDE_BLASTER, BLAST_GUIDER)
             3: [],             // Port 3: Surprise Attack (empty)
             4: ['GUIDED'],     // Port 4: Special Front Fire (GUIDED for testing)
             5: [],             // Port 5: Aggressive Defence (empty)

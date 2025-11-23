@@ -4,6 +4,7 @@
 
 import { COLLISION_CATEGORY, CANVAS_WIDTH, CANVAS_HEIGHT } from '../config/constants.js';
 import { SPEED_SCALE_FACTOR } from '../config/weapons.js';
+import TrailManager from '../systems/TrailManager.js';
 
 /**
  * Projectile class - Physics + Lifetime + PixiJS rendering coordination
@@ -127,16 +128,7 @@ export default class Projectile {
         // === TRAIL SYSTEM ===
         this.hasTrail = projectileConfig.hasTrail || false;
         this.trailConfig = projectileConfig.trailConfig || null;
-
-        if (this.hasTrail) {
-            this.trail = {
-                positions: [],                    // Array of {x, y, alpha}
-                maxLength: this.trailConfig?.maxLength || 8,
-                fadeRate: this.trailConfig?.fadeRate || 0.12,
-                spacing: this.trailConfig?.spacing || 0  // 0 = record every frame
-            };
-            this.trailDistanceCounter = 0;        // For spacing control
-        }
+        this.trailId = null;  // Trail ID from TrailManager (no trail data in Projectile!)
 
         // === RENDERING SETUP ===
         // Create PixiJS sprite via ProjectileRenderer
@@ -153,6 +145,20 @@ export default class Projectile {
         this.pixiSprite.rotation = rotationAngle;
 
         ProjectileRenderer.add(this.pixiSprite);
+
+        // === TRAIL MANAGER SETUP ===
+        // Create trail in TrailManager (if this projectile has trail)
+        if (this.hasTrail) {
+            // Create trail graphics
+            const trailGraphics = new PIXI.Graphics();
+            trailGraphics.name = 'trail';
+
+            // Add trail graphics to container (behind projectile)
+            this.ProjectileRenderer.container.addChild(trailGraphics);
+
+            // TrailManager creates and owns the trail
+            this.trailId = TrailManager.createTrail(trailGraphics, this.trailConfig);
+        }
     }
 
     /**
@@ -179,20 +185,54 @@ export default class Projectile {
 
             this.pixiSprite.position.set(pos.x, pos.y);
             this.pixiSprite.rotation = angle;
-        }
 
-        // === TRAIL UPDATE ===
-        if (this.hasTrail && this.active) {
-            this.updateTrail();
+            // === FADE OUT EFFECT (for projectiles with lifetime) ===
+            if (this.lifetime) {
+                const fadeOutDuration = 0.3;  // 페이드 아웃 시작 시간 (초)
+                const timeRemaining = this.lifetime - this.age;
 
-            // Update trail graphics via renderer
-            if (this.pixiSprite && this.trail.positions.length > 0) {
-                this.ProjectileRenderer.updateTrail(this.pixiSprite, this.trail.positions);
+                if (timeRemaining <= fadeOutDuration && timeRemaining > 0) {
+                    // 페이드 아웃: timeRemaining 0.3 → 0 일 때 alpha 1.0 → 0.0
+                    const fadeProgress = timeRemaining / fadeOutDuration;
+                    this.pixiSprite.alpha = fadeProgress;
+                } else if (timeRemaining <= 0) {
+                    // 완전 투명
+                    this.pixiSprite.alpha = 0;
+                } else {
+                    // 정상 상태
+                    this.pixiSprite.alpha = 1.0;
+                }
             }
         }
 
-        // Remove if out of bounds (always check)
-        // or if lifetime expired (only if lifetime is set)
+        // === TRAIL UPDATE ===
+        if (this.hasTrail && this.active && this.trailId !== null) {
+            // Send current position to TrailManager
+            const pos = this.body.position;
+            const vel = this.body.velocity;
+            const angle = Math.atan2(vel.y, vel.x);
+
+            TrailManager.addPosition(this.trailId, {
+                x: pos.x,
+                y: pos.y,
+                angle: angle
+            });
+        }
+
+        // === LIFETIME MANAGEMENT ===
+        // Remove sprite if out of bounds or lifetime expired
+        //
+        // 충돌 소멸 vs 시간 소멸 동작 비교:
+        //
+        // 충돌 소멸 (GUIDED):
+        //   collision.js → destroy() → detachTrail() → trail independent
+        //
+        // 시간 소멸 (BLAST_GUIDER 자탄, lifetime: 2.0s):
+        //   1.7s~2.0s: sprite 페이드 아웃 (alpha 1.0 → 0.0)
+        //   2.0s: destroy() → detachTrail() → trail independent
+        //
+        // 결과: 두 방식 모두 동일한 trail 처리 (독립 트레일로 전환 후 페이드)
+        // Trail detachment is handled in destroy() method
         if (this.isOutOfBounds() || (this.lifetime && this.age >= this.lifetime)) {
             this.destroy();
         }
@@ -255,66 +295,27 @@ export default class Projectile {
     }
 
     /**
-     * Update trail positions and fade
-     * Records current position and applies fade-out effect
-     */
-    updateTrail() {
-        const pos = this.body.position;
-        const spacing = this.trail.spacing;
-
-        // Check if we should record new position (based on spacing)
-        if (spacing > 0) {
-            // Calculate distance from last recorded position
-            const lastPos = this.trail.positions[0];
-            if (lastPos) {
-                const dx = pos.x - lastPos.x;
-                const dy = pos.y - lastPos.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                this.trailDistanceCounter += dist;
-            } else {
-                // First trail point, always record
-                this.trailDistanceCounter = spacing;  // Force record on first update
-            }
-
-            // Only record if distance threshold met
-            if (this.trailDistanceCounter < spacing) {
-                return;
-            }
-            this.trailDistanceCounter = 0;
-        }
-
-        // Add current position to trail (start with initial alpha from config)
-        // Store velocity for angle calculation (for line-based trails)
-        const vel = this.body.velocity;
-        const angle = Math.atan2(vel.y, vel.x);
-        const initialAlpha = this.trailConfig?.initialAlpha || 0.6;  // Default 0.6 (60% opacity)
-        this.trail.positions.unshift({
-            x: pos.x,
-            y: pos.y,
-            angle: angle,  // Store angle for line-based trail rendering
-            alpha: initialAlpha
-        });
-
-        // Limit trail length
-        if (this.trail.positions.length > this.trail.maxLength) {
-            this.trail.positions.pop();
-        }
-
-        // Fade out existing trail positions
-        for (let i = 1; i < this.trail.positions.length; i++) {
-            this.trail.positions[i].alpha -= this.trail.fadeRate;
-            if (this.trail.positions[i].alpha < 0) {
-                this.trail.positions[i].alpha = 0;
-            }
-        }
-    }
-
-    /**
      * Clean up physics body and rendering
+     *
+     * Cleanup order:
+     * 1. Remove physics body (충돌 방지)
+     * 2. Detach trail (TrailManager가 독립 관리 시작)
+     * 3. Remove PixiJS sprite (화면에서 제거)
+     * 4. Mark as inactive (Game.js에서 배열 제거 신호)
+     *
+     * Note: Trail은 독립적으로 TrailManager에서 계속 관리됨
      */
     destroy() {
         if (this.active) {
+            // Remove physics body
             this.Matter.World.remove(this.world, this.body);
+
+            // === TRAIL DETACHMENT ===
+            // Detach trail from projectile (TrailManager continues to manage it)
+            // Trail은 독립(independent) 상태로 전환되어 페이드 아웃됨
+            if (this.hasTrail && this.trailId !== null) {
+                TrailManager.detachTrail(this.trailId);
+            }
 
             // Clean up PixiJS sprite via ProjectileRenderer
             if (this.pixiSprite) {

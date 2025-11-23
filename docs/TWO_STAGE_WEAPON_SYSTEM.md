@@ -1,13 +1,13 @@
 # Two-Stage Weapon System Design
 
-**Date:** 2025-11-07
-**Version:** 1.0
-**Status:** ✅ **FULLY IMPLEMENTED**
+**Date:** 2025-11-07 (Updated: 2025-11-23)
+**Version:** 1.1
+**Status:** ✅ **FULLY IMPLEMENTED + EXTENDED**
 **Purpose:** Design specification for BLASTER, BREAKER, and BOMB weapon families
 
 ## Implementation Status Summary
 
-**Implementation Complete:** All 8 phases completed successfully
+**Implementation Complete:** All 8 phases completed successfully + BLASTER variants
 
 **Completed Phases:**
 - ✅ Phase 2-1: Foundation (Data Structures)
@@ -21,6 +21,8 @@
 
 **Implemented Weapons:**
 - ✅ BLASTER (360° spread, 12 missiles, CIRCLE pattern)
+- ✅ GUIDE_BLASTER (guided warhead + normal missiles, 2025-11-23)
+- ✅ BLAST_GUIDER (normal warhead + guided missiles, 2025-11-23)
 
 **System Features:**
 - Two-stage lifecycle (PRIMARY → TRIGGER → SECONDARY)
@@ -1627,6 +1629,249 @@ This two-stage weapon system provides a **generic, extensible foundation** for B
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-11-07
-**Status:** Design Complete, Ready for Implementation
+## 12. BLASTER Variants Implementation (2025-11-23)
+
+### 12.1 Overview
+
+Two BLASTER variants were implemented, combining the two-stage system with the GUIDED system:
+
+- **GUIDE_BLASTER:** Guided warhead + normal missiles
+- **BLAST_GUIDER:** Normal warhead + guided missiles
+
+Both weapons integrate:
+- Two-stage weapon system (PRIMARY → TRIGGER → SECONDARY)
+- GUIDED system (target tracking, trail effects)
+- Trail system with differentiated fadeRate
+- Acceleration system (warhead boost)
+
+### 12.2 GUIDE_BLASTER Implementation
+
+**Concept:** Guided warhead that splits into normal missiles
+
+**PRIMARY Projectile (Warhead):**
+- `isGuided: true` - SMART targeting system
+- `guidedConfig`: turnRate 0.01, detectionRange 100, updateInterval 10
+- `hasTrail: true` - Long trail (fadeRate 0.03)
+- `hasAcceleration: true` - Speed boost (5 → 7 DOS units, 0.5s)
+- Renders as CIRCLE (radius 1.5px)
+
+**SECONDARY Projectiles (Split Missiles):**
+- `isGuided: false` - Normal missiles
+- 12 missiles in CIRCLE pattern (360°)
+- Renders as SMALL_CIRCLE (radius 1px)
+- No trail, no acceleration
+
+**Stats:**
+- Energy: 28 (27% more than BLASTER)
+- Price: $1,200 (DOS original)
+- Total damage: 90 (same as BLASTER)
+
+**Use Case:** "For desperate situations with no time for aiming, or for bad aimers" (DOS manual)
+
+### 12.3 BLAST_GUIDER Implementation
+
+**Concept:** Normal warhead that splits into guided missiles
+
+**PRIMARY Projectile (Warhead):**
+- `isGuided: false` - Normal warhead
+- `hasAcceleration: true` - Speed boost (5 → 7 DOS units, 0.5s)
+- Renders as CIRCLE (radius 1.5px)
+- No trail
+
+**SECONDARY Projectiles (Split Missiles):**
+- `isGuided: true` - SMART targeting system
+- `hasTrail: true` - Short trail (fadeRate 0.12)
+- `lifetime: 2.0s` - Auto-destruct after 2 seconds
+- 12 missiles in CIRCLE pattern (360°)
+- Renders as SMALL_CIRCLE (radius 1px)
+
+**Stats:**
+- Energy: 34 (21% more than GUIDE_BLASTER)
+- Price: $2,500 (DOS original)
+- Total damage: 70 (less than BLASTER, but guided)
+
+**Use Case:** "In open spaces, maximum damage easily obtained. Very good value for money." (DOS manual)
+
+### 12.4 Trail System Integration
+
+Both weapons use the Trail system with differentiated fadeRate:
+
+**GUIDE_BLASTER PRIMARY (Guided Warhead):**
+- fadeRate: 0.03 (long trail, 20 frames ≈ 0.33s)
+- Reason: No lifetime limit, warhead flies until collision
+- Visual effect: Clear trail showing warhead's curved path
+
+**BLAST_GUIDER SECONDARY (Guided Missiles):**
+- fadeRate: 0.12 (short trail, 5 frames ≈ 0.08s)
+- Reason: lifetime 2.0s, auto-destruct prevents screen clutter
+- Visual effect: Brief trail showing missile tracking
+
+**fadeRate Calculation:**
+```
+Visual trail length (positions) = initialAlpha / fadeRate
+GUIDE_BLASTER: 0.6 / 0.03 = 20 positions → 60px trail
+BLAST_GUIDER:  0.6 / 0.12 = 5 positions  → 15px trail
+```
+
+### 12.5 System Integration
+
+**Two-Stage System:**
+- Both weapons use `projectileType: 'TWO_STAGE'`
+- `triggerType: 'BOTH'` (manual fire key OR auto collision)
+- PRIMARY → TRIGGER → SECONDARY flow identical to BLASTER
+
+**GUIDED System:**
+- Reuses existing guidedSystem.js
+- findBestTarget() with SMART algorithm
+- adjustVelocityTowardTarget() with turnRate
+- No modifications needed (system fully generic)
+
+**Trail System:**
+- Managed by TrailManager.js (Option D architecture)
+- Projectile stores only trailId
+- TrailManager owns all trail data
+- Attached/Independent state transition
+
+**Acceleration System:**
+- Both warheads use Ease-Out Quadratic
+- GUIDE_BLASTER: 5 → 7 DOS units (0.5s)
+- BLAST_GUIDER: 5 → 7 DOS units (0.5s)
+- Shorter duration than BLASTER (0.5s vs 0.7s)
+
+### 12.6 Code Example
+
+```javascript
+// weapons.js - GUIDE_BLASTER
+GUIDE_BLASTER: {
+    name: 'GUIDE BLASTER',
+    displayName: 'G.BST',
+    type: 'GUIDE_BLASTER',
+    energyCost: 28,
+    price: 1200,
+
+    projectileType: 'TWO_STAGE',
+    triggerType: 'BOTH',
+
+    primaryProjectile: {
+        damage: 0,
+        speed: 5,
+        size: 1.5,
+
+        // Guided warhead
+        isGuided: true,
+        guidedConfig: {
+            turnRate: 0.01,
+            targetType: 'SMART',
+            detectionRange: 100,
+            updateInterval: 10
+        },
+
+        // Long trail for guided path visualization
+        hasTrail: true,
+        trailConfig: {
+            maxLength: 36,
+            fadeRate: 0.03,  // Long trail
+            width: 1,
+            length: 3,
+            spacing: 3,
+            initialAlpha: 0.6,
+            color: '#ffffff'
+        },
+
+        // Acceleration
+        hasAcceleration: true,
+        accelerationConfig: {
+            initialSpeed: 5,
+            finalSpeed: 7,
+            duration: 0.5,
+            easingType: 'EASE_OUT_QUAD'
+        },
+
+        renderType: 'CIRCLE',
+        renderConfig: { radius: 1.5, fillAlpha: 1, hasOutline: false }
+    },
+
+    secondaryProjectiles: {
+        damage: 7.5,  // 90 / 12 = 7.5
+        speed: 5,
+        size: 2,
+        lifetime: 2.0,
+
+        // Normal missiles (not guided)
+        isGuided: false,
+
+        pattern: 'CIRCLE',
+        count: 12,
+
+        renderType: 'SMALL_CIRCLE',
+        renderConfig: { radius: 1 }
+    }
+}
+
+// weapons.js - BLAST_GUIDER
+BLAST_GUIDER: {
+    // ... (similar structure)
+
+    primaryProjectile: {
+        // Normal warhead (not guided)
+        isGuided: false,
+        hasAcceleration: true
+    },
+
+    secondaryProjectiles: {
+        // Guided missiles with short trail
+        isGuided: true,
+        guidedConfig: { ... },
+        hasTrail: true,
+        trailConfig: {
+            fadeRate: 0.12  // Short trail (lifetime weapon)
+        },
+        lifetime: 2.0
+    }
+}
+```
+
+### 12.7 Testing Notes
+
+**GUIDE_BLASTER:**
+- ✅ Warhead tracks nearest tank
+- ✅ Long trail shows curved path
+- ✅ Warhead acceleration visible
+- ✅ Missiles spread 360° on trigger
+- ✅ Missiles are NOT guided (correct)
+
+**BLAST_GUIDER:**
+- ✅ Warhead flies straight with acceleration
+- ✅ No warhead trail (correct)
+- ✅ 12 missiles track targets individually
+- ✅ Short trails on missiles (correct)
+- ✅ Missiles auto-destruct at 2.0s
+
+**Trail System:**
+- ✅ fadeRate difference visible (0.03 vs 0.12)
+- ✅ 4x visual trail length difference
+- ✅ TrailManager handles both correctly
+- ✅ Independent trails fade after projectile death
+
+### 12.8 Lessons Learned
+
+**System Modularity:**
+- Two-stage, GUIDED, Trail, and Acceleration systems compose perfectly
+- No conflicts or special cases needed
+- Each system remains independent and reusable
+
+**fadeRate Differentiation:**
+- Per-frame vs per-second confusion resolved
+- Visual trail length formula: `initialAlpha / fadeRate`
+- Lifetime weapons benefit from shorter trails (less clutter)
+
+**Display Names:**
+- Added `displayName` field to all weapons
+- HUD uses DOS-style abbreviations (G.BST, B.GUI)
+- Improves authenticity and readability
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-11-23
+**Status:** Implemented and Extended (3 BLASTER variants complete)

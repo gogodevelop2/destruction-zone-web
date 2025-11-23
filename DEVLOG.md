@@ -35,6 +35,152 @@
 
 ### 2025년 11월
 
+#### 11월 23일 - Trail System 리팩토링 및 BLASTER 무기 2종 완성 ✅
+**Trail System 완전 리팩토링 (Option D)**
+- TrailManager가 모든 trail 데이터 소유 (Single Map 구조)
+- Projectile은 trailId만 보유 (데이터 제거, 메모리 최적화)
+- Attached/Independent 플래그 시스템 (단순한 상태 전환)
+- fadeRate 시스템 명확화: per-frame alpha 감소량
+
+**fadeRate 차별화 시스템**
+- GUIDED: fadeRate 0.03 (긴 트레일, 20프레임 ≈ 0.33초)
+- GUIDE_BLASTER PRIMARY: fadeRate 0.03 (긴 트레일)
+- BLAST_GUIDER SECONDARY: fadeRate 0.12 (짧은 트레일, 5프레임 ≈ 0.08초)
+- 시각적 트레일 길이 = initialAlpha / fadeRate
+- 무기 특성에 따른 최적화: lifetime 없음(긴 트레일), lifetime 있음(짧은 트레일)
+
+**Projectile Lifecycle 최적화**
+- 충돌 소멸 vs 시간 소멸 동작 통일
+- 두 경우 모두 destroy() → detachTrail() → trail independent
+- lifetime 도달 시 중복 detach 제거
+- 불필요한 trailFadeDelay 제거
+
+**GUIDE_BLASTER 무기 완성 (Port 2)**
+- 유도 warhead + 일반 미사일 분산
+- PRIMARY: 유도 탄두 (isGuided: true, SMART targeting)
+- SECONDARY: 12발 360° 분산 (CIRCLE pattern)
+- Trail 시스템: PRIMARY에만 적용 (fadeRate 0.03)
+- 에너지: 28 (BLASTER보다 27% 증가)
+- 가격: $1,200 (DOS 원본)
+
+**BLAST_GUIDER 무기 완성 (Port 2)**
+- 일반 warhead + 유도 미사일 분산
+- PRIMARY: 일반 탄두 (가속 시스템)
+- SECONDARY: 12발 유도 미사일 (isGuided: true)
+- Trail 시스템: SECONDARY에만 적용 (fadeRate 0.12, 짧은 트레일)
+- Lifetime: SECONDARY 2.0초 (자동 소멸)
+- 에너지: 34 (GUIDE_BLASTER보다 21% 증가)
+- 가격: $2,500 (DOS 원본)
+
+**Weapon Display Name 시스템**
+- 모든 무기에 displayName 필드 추가
+- DOS 원본 요약 이름 사용 (MISIL, LASER, DOUBL, TRIPL, POWER, STRIK, BLAST, G.BST, B.GUI, GUIDE)
+- HUD 시스템 업데이트: displayName 우선 표시
+
+**문서화 강화**
+- TrailManager.js: fadeRate 시스템, attached/independent 상세 주석
+- Projectile.js: lifecycle 설명, 충돌/시간 소멸 비교 주석
+- weapons.js: TRAIL CONFIG 헤더, trailConfig 인라인 주석
+- CHANGELOG.md: 2025-11-23 항목 추가
+
+**기술적 세부사항:**
+```javascript
+// TrailManager.js - Option D Architecture
+const TrailManager = {
+    trails: new Map(),  // Single Map for all trails
+
+    createTrail(graphics, config) {
+        const trail = {
+            id: this.nextId++,
+            graphics: graphics,
+            positions: [],
+            config: config,
+            attached: true,  // Simple flag!
+            lastPosition: null,
+            distanceCounter: 0
+        };
+        this.trails.set(trail.id, trail);
+        return trail.id;
+    },
+
+    detachTrail(trailId) {
+        const trail = this.trails.get(trailId);
+        if (!trail) return;
+        trail.attached = false;  // Simple state change
+    },
+
+    updateTrails(deltaTime) {
+        for (const [id, trail] of this.trails) {
+            if (trail.attached) {
+                // Skip first position (head, always new)
+                for (let i = 1; i < trail.positions.length; i++) {
+                    trail.positions[i].alpha -= trail.config.fadeRate;
+                }
+            } else {
+                // Fade all positions (independent trail)
+                for (const pos of trail.positions) {
+                    pos.alpha -= trail.config.fadeRate;
+                }
+            }
+            // Remove faded positions from tail
+            while (trail.positions.length > 0 &&
+                   trail.positions[trail.positions.length - 1].alpha <= 0.01) {
+                trail.positions.pop();
+            }
+        }
+    }
+};
+
+// weapons.js - GUIDE_BLASTER (유도 warhead)
+GUIDE_BLASTER: {
+    primaryProjectile: {
+        isGuided: true,  // Guided warhead
+        guidedConfig: {
+            turnRate: 0.01,
+            targetType: 'SMART',
+            detectionRange: 100,
+            updateInterval: 10
+        },
+        hasTrail: true,
+        trailConfig: {
+            fadeRate: 0.03  // Long trail
+        }
+    },
+    secondaryProjectiles: {
+        isGuided: false,  // Normal missiles
+        pattern: 'CIRCLE'
+    }
+},
+
+// weapons.js - BLAST_GUIDER (유도 missiles)
+BLAST_GUIDER: {
+    primaryProjectile: {
+        isGuided: false,  // Normal warhead
+        hasAcceleration: true
+    },
+    secondaryProjectiles: {
+        isGuided: true,   // Guided missiles
+        guidedConfig: { ... },
+        hasTrail: true,
+        trailConfig: {
+            fadeRate: 0.12  // Short trail (lifetime 2.0s)
+        },
+        lifetime: 2.0
+    }
+}
+
+// hud.js - Display Name System
+const weaponData = WEAPON_DATA[tank.currentWeapon];
+weaponInfo.textContent = weaponData?.displayName || weaponData?.name.substring(0, 6) || 'N/A';
+```
+
+**파일 변경:**
+- 수정: `js/systems/TrailManager.js` - Option D 리팩토링, fadeRate 시스템 문서화
+- 수정: `js/entities/Projectile.js` - trailId만 보유, lifecycle 주석 강화
+- 수정: `js/config/weapons.js` - GUIDE_BLASTER/BLAST_GUIDER 완성, fadeRate 차별화, displayName 추가
+- 수정: `js/ui/hud.js` - displayName 우선 표시
+- 수정: `CHANGELOG.md` - 2025-11-23 항목 추가
+
 #### 11월 11일 - Acceleration System 구현 및 TRI-STRIKER 완성 ✅
 **가속도 시스템 구축**
 - Ease-Out Quadratic 기반 가속 시스템 구현

@@ -28,9 +28,10 @@ export function updateUI(tanks, WEAPON_DATA) {
             const weaponFill = statPanel.querySelector('.gauge-fill.weapon');
             weaponFill.style.height = `${energyPercent}%`;
 
-            // Update weapon info
+            // Update weapon info (use displayName for short abbreviation)
             const weaponInfo = statPanel.querySelector('.weapon-info');
-            weaponInfo.textContent = WEAPON_DATA[tank.currentWeapon]?.name.substring(0, 6) || 'N/A';
+            const weaponData = WEAPON_DATA[tank.currentWeapon];
+            weaponInfo.textContent = weaponData?.displayName || weaponData?.name.substring(0, 6) || 'N/A';
 
             // Update score
             const scoreEl = statPanel.querySelector('.score');

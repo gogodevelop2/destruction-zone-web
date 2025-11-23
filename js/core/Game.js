@@ -19,6 +19,7 @@ import { AIManager } from '../systems/ai/AIController.js';
 import { updateUI } from '../ui/hud.js';
 import WallGenerator from '../systems/wallGenerator.js';
 import { GuidedSystem } from '../systems/guidedSystem.js';
+import TrailManager from '../systems/TrailManager.js';
 
 /**
  * Main Game class - Coordinates all game systems
@@ -89,6 +90,7 @@ export default class Game {
         // Initialize PixiJS
         this.pixiApp = initPixiJS(CANVAS_WIDTH, CANVAS_HEIGHT);
         ProjectileRenderer.init(getProjectileContainer());
+        TrailManager.init(getProjectileContainer());
 
         // Initialize renderer
         this.renderer = new Renderer(canvas);
@@ -340,6 +342,9 @@ export default class Game {
 
         // Update particles (visual effects - no need for substep precision)
         updateParticles(deltaTime);
+
+        // Update trail manager (independent trail fade-out)
+        TrailManager.updateTrails(deltaTime);
 
         // Check win condition
         const result = this.gameMode.checkWinCondition(this.tanks);

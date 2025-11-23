@@ -275,21 +275,8 @@ const ProjectileRenderer = {
         }
 
         // === TRAIL SUPPORT ===
-        // If weapon has trail, create separate trail graphics (not as child)
-        if (weaponData.hasTrail) {
-            // Create trail graphics separately (will be added to main container, not as child)
-            const trailGraphics = new PIXI.Graphics();
-            trailGraphics.name = 'trail';
-
-            // Store trail reference and config in main graphics
-            graphics.trailGraphics = trailGraphics;
-            graphics.color = color;
-            graphics.trailConfig = weaponData.trailConfig || {};
-            graphics.hasTrail = true;
-
-            // Add trail graphics to main container first (render behind)
-            this.container.addChild(trailGraphics);
-        }
+        // NOTE: Trail graphics are now created by Projectile and managed by TrailManager
+        // This section is removed - trails are no longer handled by ProjectileRenderer
 
         return graphics;
     },
@@ -307,60 +294,25 @@ const ProjectileRenderer = {
      * @param {PIXI.Graphics} sprite - PixiJS sprite to remove
      */
     remove(sprite) {
-        // Remove trail graphics if exists
-        if (sprite.trailGraphics) {
-            this.container.removeChild(sprite.trailGraphics);
-            sprite.trailGraphics.destroy();
-        }
+        // NOTE: Trail graphics are managed by TrailManager, not here
+        // Just remove main sprite
 
-        // Remove main sprite
         this.container.removeChild(sprite);
         sprite.destroy();
     },
 
     /**
      * Update trail graphics for a projectile
+     * @deprecated - Trail rendering is now handled by TrailManager
+     * This method is kept for backward compatibility but does nothing
      * @param {PIXI.Container} sprite - Projectile sprite (container with trail)
      * @param {Array<{x, y, angle, alpha}>} trailPositions - Trail position data from Projectile
      */
     updateTrail(sprite, trailPositions) {
-        // Check if this sprite has trail graphics
-        if (!sprite.trailGraphics) return;
-
-        const trailGraphics = sprite.trailGraphics;
-        const trailConfig = sprite.trailConfig;
-        const lineWidth = trailConfig.width || 1;      // Line thickness
-        const lineLength = trailConfig.length || 3;    // Line length
-
-        // Clear previous trail
-        trailGraphics.clear();
-
-        // Don't render if no positions
-        if (!trailPositions || trailPositions.length === 0) return;
-
-        // Draw trail as series of small line segments with fading alpha
-        // Use trail color if specified, otherwise use projectile color
-        const trailColor = trailConfig.color || sprite.color;
-        const colorHex = parseInt(trailColor.replace('#', ''), 16);
-
-        for (let i = 0; i < trailPositions.length; i++) {
-            const pos = trailPositions[i];
-
-            // Skip if alpha is too low
-            if (pos.alpha <= 0.01) continue;
-
-            // Calculate line endpoints based on angle and length
-            const halfLength = lineLength / 2;
-            const x1 = pos.x - Math.cos(pos.angle) * halfLength;
-            const y1 = pos.y - Math.sin(pos.angle) * halfLength;
-            const x2 = pos.x + Math.cos(pos.angle) * halfLength;
-            const y2 = pos.y + Math.sin(pos.angle) * halfLength;
-
-            // Draw line segment
-            trailGraphics.lineStyle(lineWidth, colorHex, pos.alpha);
-            trailGraphics.moveTo(x1, y1);
-            trailGraphics.lineTo(x2, y2);
-        }
+        // ❌ DEPRECATED - TrailManager handles all trail rendering
+        // This method is no longer called from Projectile.js
+        // Keeping it empty to prevent errors if old code still references it
+        return;
     }
 };
 

@@ -660,5 +660,174 @@ function getFirePoints(tank, firePattern) {
 
 ---
 
-**Last Updated:** 2025-11-08
-**Version:** 1.0
+---
+
+## 12. Trail System 리팩토링 (2025-11-23 Update)
+
+### 12.1 TrailManager Option D Architecture
+
+Trail System이 완전히 리팩토링되었습니다 (Option D):
+
+**변경 전 (Projectile-owned):**
+```javascript
+// Projectile.js
+this.trail = {
+    positions: [],
+    maxLength: 36,
+    fadeRate: 0.03,
+    spacing: 3
+};
+```
+
+**변경 후 (TrailManager-owned):**
+```javascript
+// Projectile.js
+this.trailId = null;  // Only stores ID
+
+// TrailManager.js
+const TrailManager = {
+    trails: new Map(),  // Owns all trail data
+
+    createTrail(graphics, config) {
+        const trail = {
+            id: this.nextId++,
+            graphics: graphics,
+            positions: [],
+            config: config,
+            attached: true,
+            lastPosition: null,
+            distanceCounter: 0
+        };
+        this.trails.set(trail.id, trail);
+        return trail.id;
+    }
+};
+```
+
+**장점:**
+- Projectile 메모리 사용량 감소 (trail 데이터 제거)
+- 단일 Map 구조 (attached/independent 플래그로 구분)
+- 상태 전환 단순화: `trail.attached = false`
+- TrailManager가 모든 trail 생명주기 관리
+
+### 12.2 fadeRate 시스템 명확화
+
+fadeRate는 **per-frame** alpha 감소량입니다 (NOT per-second):
+
+```javascript
+// TrailManager.js - updateTrails()
+if (trail.attached) {
+    // Attached: Skip first position (head, always new)
+    for (let i = 1; i < trail.positions.length; i++) {
+        trail.positions[i].alpha -= trail.config.fadeRate;
+    }
+} else {
+    // Independent: Fade all positions
+    for (const pos of trail.positions) {
+        pos.alpha -= trail.config.fadeRate;
+    }
+}
+```
+
+**시각적 트레일 길이 계산:**
+```
+보이는 위치 개수 = initialAlpha / fadeRate
+GUIDED (fadeRate 0.03): 0.6 / 0.03 = 20 positions → 20 frames ≈ 0.33s
+BLAST_GUIDER (fadeRate 0.12): 0.6 / 0.12 = 5 positions → 5 frames ≈ 0.08s
+
+트레일 길이(px) = (보이는 위치 개수) × spacing
+GUIDED: 20 × 3px = 60px
+BLAST_GUIDER: 5 × 3px = 15px
+```
+
+### 12.3 Attached vs Independent Trails
+
+**Attached (탄두 생존 중):**
+- positions[0] (머리): 페이드 안함 (매 프레임 새로 추가)
+- positions[1~N] (꼬리): fadeRate만큼 페이드
+- 탄두가 지나간 자리에 잔상 남김
+
+**Independent (탄두 소멸 후):**
+- 모든 위치가 fadeRate만큼 페이드
+- 꼬리(마지막 위치)부터 서서히 제거
+- 모든 위치 사라지면 trail 자동 제거
+
+**Lifecycle:**
+```
+1. Projectile 생성 → TrailManager.createTrail() → trailId 반환
+2. Projectile.update() → TrailManager.addPosition(trailId, {x, y, angle})
+3. Projectile 충돌/소멸 → TrailManager.detachTrail(trailId)
+4. TrailManager.updateTrails() → Independent trail 페이드
+5. Trail 완전 소멸 → TrailManager.destroyTrail(trailId)
+```
+
+### 12.4 BLASTER Variants Trail Integration
+
+**GUIDE_BLASTER PRIMARY:**
+- fadeRate: 0.03 (긴 트레일)
+- 이유: lifetime 없음, 충돌까지 비행 → 유도 경로 시각화 중요
+
+**BLAST_GUIDER SECONDARY:**
+- fadeRate: 0.12 (짧은 트레일)
+- 이유: lifetime 2.0s, 자동 소멸 → 화면 지저분함 방지
+
+**설정 예시:**
+```javascript
+// weapons.js - GUIDE_BLASTER PRIMARY
+primaryProjectile: {
+    isGuided: true,
+    hasTrail: true,
+    trailConfig: {
+        maxLength: 36,
+        fadeRate: 0.03,  // Long trail
+        width: 1,
+        length: 3,
+        spacing: 3,
+        initialAlpha: 0.6,
+        color: '#ffffff'
+    }
+}
+
+// weapons.js - BLAST_GUIDER SECONDARY
+secondaryProjectiles: {
+    isGuided: true,
+    hasTrail: true,
+    trailConfig: {
+        fadeRate: 0.12,  // Short trail
+        // ... (동일한 설정)
+    },
+    lifetime: 2.0
+}
+```
+
+### 12.5 Updated Architecture
+
+```
+TrailManager (js/systems/TrailManager.js)
+├── trails: Map<id, Trail>      - Single Map for all trails
+├── createTrail()                - Create trail, return ID
+├── addPosition()                - Add position to trail
+├── detachTrail()                - Detach trail (attached → independent)
+├── updateTrails()               - Fade and cleanup
+└── destroyTrail()               - Remove trail graphics
+
+Projectile (js/entities/Projectile.js)
+├── trailId                      - Trail ID only (no data!)
+├── hasTrail                     - Trail enabled flag
+└── trailConfig                  - Trail configuration
+
+ProjectileRenderer (js/core/ProjectileRenderer.js)
+└── updateTrail()                - Deprecated (TrailManager handles rendering)
+```
+
+### 12.6 Files Updated
+
+- `js/systems/TrailManager.js` - Option D 리팩토링, 상세 주석 추가
+- `js/entities/Projectile.js` - trailId만 보유, lifecycle 주석 강화
+- `js/config/weapons.js` - fadeRate 차별화, TRAIL CONFIG 헤더
+- `js/core/ProjectileRenderer.js` - Trail 렌더링 deprecated
+
+---
+
+**Last Updated:** 2025-11-23
+**Version:** 1.1

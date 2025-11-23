@@ -6,6 +6,25 @@
 
 ## 2025년 11월
 
+### 2025-11-23
+- **refactor**: Trail system 완전 리팩토링 (Option D)
+  - TrailManager: 모든 trail 데이터 소유권 통합
+  - Projectile: trailId만 보유 (데이터 제거)
+  - Single Map 구조 (attached/independent 플래그)
+  - fadeRate 시스템 정리 (per-frame 명확화)
+- **feat**: fadeRate 차별화 설정
+  - GUIDED: 0.03 (긴 트레일, 20프레임)
+  - BLAST_GUIDER 자탄: 0.12 (짧은 트레일, 5프레임)
+  - lifetime 유무에 따른 최적화
+- **fix**: Projectile lifecycle 최적화
+  - lifetime 도달 시 detach 중복 제거
+  - trailFadeDelay 불필요한 딜레이 제거
+  - 충돌 소멸 vs 시간 소멸 동작 통일
+- **docs**: Trail system 문서화 강화
+  - TrailManager.js 상세 주석 (fadeRate, attached/independent)
+  - weapons.js TRAIL CONFIG 헤더 추가
+  - Projectile.js lifecycle 설명 추가
+
 ### 2025-11-11
 - **feat**: Acceleration system 구현
   - Ease-Out Quadratic 가속 시스템
